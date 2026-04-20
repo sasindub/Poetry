@@ -1,0 +1,20 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "leK5mrr7NVVT4Ca81fqzk"
+uri = "file://artifacts/poetry-platform/src/assets/images/hero-bg.png"
+type = "image"
+title = "Cinematic desert sunset"
+
+[[generated]]
+id = "scIFhiCWABHQTRNCvA0dI"
+uri = "file://artifacts/poetry-platform/src/assets/images/pattern-bg.png"
+type = "image"
+title = "Arabic geometric pattern"
+
+[[generated]]
+id = "F_AW15MgcPHCUBQYLhTMN"
+uri = "file://artifacts/poetry-platform/src/assets/images/quill.png"
+type = "image"
+title = "Golden feather pen"

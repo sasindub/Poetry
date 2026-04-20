@@ -2,7 +2,9 @@ import { type ReactNode, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/hooks/useLanguage";
+import { useTheme } from "@/hooks/useTheme";
 import { LanguageToggle } from "./LanguageToggle";
+import { ThemeToggle } from "./ThemeToggle";
 import { getAuthUser, clearAuth } from "@/lib/auth";
 
 interface NavItem {
@@ -190,6 +192,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
             </Link>
           </div>
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <LanguageToggle />
             <div className="w-8 h-8 rounded-full gold-gradient flex items-center justify-center text-navy font-bold text-sm">
               {user?.name?.charAt(0) || "U"}

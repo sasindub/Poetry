@@ -2,10 +2,13 @@ import { type ReactNode, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/hooks/useLanguage";
+import { useTheme } from "@/hooks/useTheme";
 import { LanguageToggle } from "./LanguageToggle";
+import { ThemeToggle } from "./ThemeToggle";
 
 export function PublicLayout({ children }: { children: ReactNode }) {
   const { t } = useLanguage();
+  const { isDark } = useTheme();
   const [location] = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -19,18 +22,18 @@ export function PublicLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 glass-panel border-b border-gold/10">
+      <nav className="fixed top-0 left-0 right-0 z-50 nav-glass">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-3 group">
               <div className="w-9 h-9 rounded-full gold-gradient flex items-center justify-center shadow-lg">
                 <svg viewBox="0 0 24 24" className="w-5 h-5 text-navy" fill="currentColor">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                  <path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z" />
                 </svg>
               </div>
               <div>
-                <div className="text-xs text-gold/60 font-display tracking-wider">أبوظبي للتراث</div>
+                <div className="text-xs text-gold font-display tracking-wider opacity-70">أبوظبي للتراث</div>
                 <div className="text-sm font-semibold text-foreground leading-none">AHA Poetry</div>
               </div>
             </Link>
@@ -42,7 +45,9 @@ export function PublicLayout({ children }: { children: ReactNode }) {
                   key={link.href}
                   href={link.href}
                   className={`text-sm transition-colors duration-200 ${
-                    location === link.href ? "text-gold" : "text-foreground/70 hover:text-gold"
+                    location === link.href
+                      ? isDark ? "text-gold" : "text-[#8B5E0A] font-medium"
+                      : "text-foreground/60 hover:text-foreground"
                   }`}
                 >
                   {link.label}
@@ -51,16 +56,17 @@ export function PublicLayout({ children }: { children: ReactNode }) {
             </div>
 
             {/* Right side */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
               <LanguageToggle />
               <Link
                 href="/login"
-                className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg gold-gradient text-navy text-sm font-semibold hover:opacity-90 transition-opacity"
+                className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg gold-gradient text-navy text-sm font-semibold hover:opacity-90 transition-opacity shadow-md"
               >
                 {t("login")}
               </Link>
               {/* Mobile menu button */}
-              <button className="md:hidden text-foreground/70 hover:text-gold p-1" onClick={() => setMenuOpen(!menuOpen)}>
+              <button className="md:hidden text-foreground/70 hover:text-foreground p-1" onClick={() => setMenuOpen(!menuOpen)}>
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={menuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
                 </svg>
@@ -80,7 +86,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
             >
               <div className="px-4 py-3 space-y-2">
                 {navLinks.map((link) => (
-                  <Link key={link.href} href={link.href} className="block py-2 text-foreground/70 hover:text-gold text-sm" onClick={() => setMenuOpen(false)}>
+                  <Link key={link.href} href={link.href} className="block py-2 text-foreground/70 hover:text-foreground text-sm" onClick={() => setMenuOpen(false)}>
                     {link.label}
                   </Link>
                 ))}
@@ -97,14 +103,14 @@ export function PublicLayout({ children }: { children: ReactNode }) {
       <main>{children}</main>
 
       {/* Footer */}
-      <footer className="bg-[#060e1c] border-t border-gold/10 py-12 mt-20">
+      <footer className={`border-t border-gold/10 py-12 mt-20 ${isDark ? "bg-[#060e1c]" : "bg-[#f0e6ca]"}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
             <div>
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-8 h-8 rounded-full gold-gradient flex items-center justify-center">
                   <svg viewBox="0 0 24 24" className="w-4 h-4 text-navy" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    <path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z" />
                   </svg>
                 </div>
                 <span className="font-display text-lg font-semibold gold-gradient-text">AHA Poetry</span>
@@ -117,7 +123,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
               <h4 className="text-gold text-sm font-semibold mb-3">Quick Links</h4>
               <div className="space-y-2">
                 {navLinks.map((l) => (
-                  <Link key={l.href} href={l.href} className="block text-foreground/50 hover:text-gold text-sm transition-colors">{l.label}</Link>
+                  <Link key={l.href} href={l.href} className="block text-foreground/50 hover:text-foreground text-sm transition-colors">{l.label}</Link>
                 ))}
               </div>
             </div>

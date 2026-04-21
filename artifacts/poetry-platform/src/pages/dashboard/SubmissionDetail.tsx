@@ -1,281 +1,874 @@
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Link, useParams } from "wouter";
 import { useLanguage } from "@/hooks/useLanguage";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { useGetSubmission } from "@workspace/api-client-react";
+import { getAuthUser } from "@/lib/auth";
+import { useTheme } from "@/hooks/useTheme";
 
+// ─── Stage breadcrumb definition (matches BRD lifecycle) ──────────────────────
+const STAGES = [
+  { key: "received",                label: "Received" },
+  { key: "under_review",            label: "Review" },
+  { key: "jury_form_under_review",  label: "Jury Form" },
+  { key: "sent_to_jury",            label: "Assign" },
+  { key: "under_jury_review",       label: "Jury" },
+  { key: "jury_review_closed",      label: "Monitor" },
+  { key: "under_consolidation",     label: "Consol." },
+  { key: "final_form_under_review", label: "Final Form" },
+  { key: "sent_for_final_decision", label: "Decision" },
+  { key: "approved",                label: "Notify" },
+];
+
+const STATUS_ORDER = STAGES.map((s) => s.key);
+
+function stageIndex(status: string) {
+  const i = STATUS_ORDER.indexOf(status);
+  return i === -1 ? 0 : i;
+}
+
+// ─── Status helpers ────────────────────────────────────────────────────────────
+const statusColorsDark: Record<string, string> = {
+  received: "bg-cyan-500/15 text-cyan-400 border border-cyan-500/20",
+  under_review: "bg-blue-500/15 text-blue-400 border border-blue-500/20",
+  pending_information: "bg-orange-500/15 text-orange-400 border border-orange-500/20",
+  ready_for_jury: "bg-violet-500/15 text-violet-400 border border-violet-500/20",
+  jury_form_under_review: "bg-indigo-500/15 text-indigo-400 border border-indigo-500/20",
+  sent_to_jury: "bg-purple-500/15 text-purple-400 border border-purple-500/20",
+  under_jury_review: "bg-fuchsia-500/15 text-fuchsia-400 border border-fuchsia-500/20",
+  jury_review_closed: "bg-teal-600/15 text-teal-300 border border-teal-600/20",
+  under_consolidation: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20",
+  final_form_under_review: "bg-yellow-500/15 text-yellow-400 border border-yellow-500/20",
+  sent_for_final_decision: "bg-amber-600/15 text-amber-300 border border-amber-600/20",
+  approved: "bg-green-500/15 text-green-400 border border-green-500/20",
+  rejected: "bg-red-500/15 text-red-400 border border-red-500/20",
+  returned_for_clarification: "bg-orange-600/15 text-orange-300 border border-orange-600/20",
+  archived: "bg-gray-500/15 text-gray-400 border border-gray-500/20",
+};
+const statusColorsLight: Record<string, string> = {
+  received: "bg-cyan-100 text-cyan-800 border border-cyan-300",
+  under_review: "bg-blue-100 text-blue-900 border border-blue-300",
+  pending_information: "bg-orange-100 text-orange-900 border border-orange-300",
+  ready_for_jury: "bg-violet-100 text-violet-900 border border-violet-300",
+  jury_form_under_review: "bg-indigo-100 text-indigo-900 border border-indigo-300",
+  sent_to_jury: "bg-purple-100 text-purple-900 border border-purple-300",
+  under_jury_review: "bg-fuchsia-100 text-fuchsia-900 border border-fuchsia-300",
+  jury_review_closed: "bg-teal-200 text-teal-900 border border-teal-300",
+  under_consolidation: "bg-emerald-100 text-emerald-900 border border-emerald-300",
+  final_form_under_review: "bg-yellow-100 text-yellow-900 border border-yellow-300",
+  sent_for_final_decision: "bg-amber-200 text-amber-900 border border-amber-400",
+  approved: "bg-green-100 text-green-900 border border-green-300",
+  rejected: "bg-red-100 text-red-900 border border-red-300",
+  returned_for_clarification: "bg-orange-200 text-orange-900 border border-orange-400",
+  archived: "bg-gray-100 text-gray-800 border border-gray-300",
+};
+
+function statusLabel(status: string) {
+  const labels: Record<string, string> = {
+    received: "Received", under_review: "Under Review",
+    pending_information: "Pending Information Update",
+    ready_for_jury: "Ready for Jury", jury_form_under_review: "Jury Form Under Review",
+    sent_to_jury: "Sent to Jury", under_jury_review: "Under Jury Review",
+    jury_review_closed: "Jury Review Closed", under_consolidation: "Under Consolidation",
+    final_form_under_review: "Final Form Under Review",
+    sent_for_final_decision: "Sent for Final Decision",
+    approved: "Approved", rejected: "Rejected",
+    returned_for_clarification: "Returned for Clarification", archived: "Archived",
+  };
+  return labels[status] ?? status;
+}
+
+// ─── Fake jury members list ────────────────────────────────────────────────────
+const JURY_MEMBERS = [
+  { id: 3, name: "Prof. Ahmad Al Mazrouei",  nameAr: "أ.د. أحمد المزروعي",   specialization: "Classical Arabic Poetry" },
+  { id: 4, name: "Dr. Layla Al Suwaidi",     nameAr: "د. ليلى السويدي",       specialization: "Nabati Poetry" },
+  { id: 5, name: "Dr. Hamad Al Bloushi",     nameAr: "د. حمد البلوشي",        specialization: "Modern Arabic Poetry" },
+  { id: 6, name: "Prof. Moza Al Ketbi",      nameAr: "أ.د. موزة الكتبي",      specialization: "Linguistic Analysis" },
+];
+
+// ─── Fake submission detail data ───────────────────────────────────────────────
 const fakeDetails: Record<number, any> = {
   1: {
-    id: 1, referenceNumber: "AHA-2026-001", poetName: "Mohammed Al Mansoori", poetNameAr: "محمد المنصوري", poetEmail: "mohammed@example.com", poetPhone: "+971501234567", poetNationality: "UAE",
-    poemTitle: "Desert Song", poemTitleAr: "أغنية الصحراء", poemType: "nabati", status: "approved",
-    poemContent: "يا صحراء الوطن يا أرض الأجداد\nفي رمالك تاريخ وفي ترابك أمجاد\nبين نخيلك تسمع أصوات الأبطال\nوفي سمائك يسبح نسر الأحرار\n\nيا واحة الأمل في قلب الصحراء\nحيث يلتقي الماضي بنور المستقبل\nعلى ترابك المقدس تسير الأقدام\nونبض الوطن يدق في كل قلب",
-    submittedAt: "2026-01-20T10:00:00Z", updatedAt: "2026-02-15T10:00:00Z",
-    reviewerNotes: "Exceptional poem with perfect meter and profound imagery. Captures the spirit of the nation beautifully.",
+    id: 1, referenceNumber: "AHA-2026-001", status: "approved",
+    poetName: "Mohammed Al Mansoori", poetNameAr: "محمد المنصوري",
+    poetEmail: "m.almansoori@email.com", poetPhone: "+971 50 123 4567",
+    poetNationality: "UAE", profileSource: "Auto-fetched from system",
+    requesterName: "Salem Al Dhaheri", requesterNameAr: "سالم الظاهري",
+    requesterRelationship: "Representative", channel: "Email",
+    requestDate: "20 April 2026",
+    poemTitle: "Desert Song", poemTitleAr: "أغنية الصحراء",
+    poemType: "Nabati", openingLine: "يا صحراء الوطن يا أرض الأجداد",
+    poemContent: "يا صحراء الوطن يا أرض الأجداد\nفي رمالك تاريخ وفي ترابك أمجاد\nيا موطن البطولات والكرم\nفيك يحلو السرى ويطيب الزاد",
+    attachment: "desert_song.pdf", submittedAt: "2026-01-20T10:00:00Z",
+    reviewerNotes: "Exceptional poem with perfect meter and profound imagery.",
     finalScore: 9.2, finalDecision: "Approved for National Heritage Collection",
     evaluations: [
-      { id: 1, juryMemberId: 3, juryMemberName: "Prof. Ahmad Al Mazrouei", linguisticScore: 9.5, poeticScore: 9.2, originalityScore: 8.8, emotionalScore: 9.0, culturalScore: 9.5, totalScore: 9.2, recommendation: "approve", notes: "Masterful use of traditional Nabati forms. The rhythm and meter are flawless.", submittedAt: "2026-02-01T10:00:00Z" },
-      { id: 2, juryMemberId: 4, juryMemberName: "Dr. Layla Al Suwaidi", linguisticScore: 9.0, poeticScore: 9.3, originalityScore: 9.1, emotionalScore: 8.9, culturalScore: 9.2, totalScore: 9.1, recommendation: "approve", notes: "Exceptional cultural authenticity and emotional depth. A true national poem.", submittedAt: "2026-02-03T10:00:00Z" },
+      { id: 1, juryMemberName: "Prof. Ahmad Al Mazrouei", linguisticScore: 9.5, poeticScore: 9.2, originalityScore: 8.8, emotionalScore: 9.0, culturalScore: 9.5, totalScore: 9.2, recommendation: "approve", notes: "Masterful use of traditional Nabati forms." },
+      { id: 2, juryMemberName: "Dr. Layla Al Suwaidi",    linguisticScore: 9.0, poeticScore: 9.3, originalityScore: 9.1, emotionalScore: 8.9, culturalScore: 9.2, totalScore: 9.1, recommendation: "approve", notes: "Exceptional cultural authenticity." },
     ],
   },
-  5: {
-    id: 5, referenceNumber: "AHA-2026-005", poetName: "Omar Al Shamsi", poetNameAr: "عمر الشمسي", poetEmail: "omar@example.com", poetPhone: "+971505678901", poetNationality: "UAE",
-    poemTitle: "The Brave Falcon", poemTitleAr: "الصقر الشجاع", poemType: "nabati", status: "approved",
-    poemContent: "يا صقر الجنوب يا ملك الجو العالي\nطائر بجناحيك فوق كل الجبال\nحلقاتك تملأ القلب بالإعجاب\nوعيناك تنظران بعيداً في الضباب\n\nيا رمز الحرية يا فخر الأجداد\nفي سمائنا تطير بكبرياء واقتدار\nمن يراك يعرف قوة هذا الوطن\nومن يسمع صوتك يشعر بالانتصار",
-    submittedAt: "2026-01-10T10:00:00Z", updatedAt: "2026-01-30T10:00:00Z",
-    reviewerNotes: "Outstanding Nabati poetry with authentic traditional style.",
-    finalScore: 9.5, finalDecision: "Awarded Gold Medal — National Poets Competition 2026",
+  2: {
+    id: 2, referenceNumber: "AHA-2026-002", status: "under_review",
+    poetName: "Fatima Al Hashimi", poetNameAr: "فاطمة الهاشمي",
+    poetEmail: "f.hashimi@email.com", poetPhone: "+971 55 234 5678",
+    poetNationality: "UAE", profileSource: "Auto-fetched from system",
+    requesterName: "Fatima Al Hashimi", requesterNameAr: "فاطمة الهاشمي",
+    requesterRelationship: "Self", channel: "WhatsApp",
+    requestDate: "30 January 2026",
+    poemTitle: "Voice of the Palm", poemTitleAr: "صوت النخيل",
+    poemType: "Classical", openingLine: "صوت النخيل يهمس في الفجر",
+    poemContent: "صوت النخيل يهمس في الفجر\nويرسم في السماء حكاية العمر\nيحكي حكايات أهل الصحراء\nويبقى شامخاً عبر الأزمان والدهر",
+    attachment: "voice_of_the_palm.pdf", submittedAt: "2026-01-30T10:00:00Z",
+    reviewerNotes: "", finalScore: null, finalDecision: null, evaluations: [],
+  },
+  7: {
+    id: 7, referenceNumber: "AHA-2026-007", status: "pending_information",
+    poetName: "Rashid Al Ketbi", poetNameAr: "راشد الكتبي",
+    poetEmail: "r.ketbi@email.com", poetPhone: "+966 50 345 6789",
+    poetNationality: "Saudi Arabia", profileSource: "Auto-fetched from system",
+    requesterName: "Salem Al Dhaheri", requesterNameAr: "سالم الظاهري",
+    requesterRelationship: "Representative", channel: "Email",
+    requestDate: "08 February 2026",
+    poemTitle: "Mountains of Hejaz", poemTitleAr: "جبال الحجاز",
+    poemType: "Classical", openingLine: "",
+    poemContent: "في صحراء الوطن يهمس النسيم\nويحكي قصص الأجداد للقديم",
+    attachment: "mountains_of_hejaz.pdf", submittedAt: "2026-02-08T10:00:00Z",
+    reviewerNotes: "", finalScore: null, finalDecision: null, evaluations: [],
+  },
+  13: {
+    id: 13, referenceNumber: "AHA-2026-013", status: "jury_review_closed",
+    poetName: "Ibrahim Al Dhaheri", poetNameAr: "إبراهيم الظاهري",
+    poetEmail: "i.dhaheri@email.com", poetPhone: "+971 50 567 8901",
+    poetNationality: "UAE", profileSource: "Auto-fetched from system",
+    requesterName: "Ibrahim Al Dhaheri", requesterNameAr: "إبراهيم الظاهري",
+    requesterRelationship: "Self", channel: "Internal Referral",
+    requestDate: "05 February 2026",
+    poemTitle: "Song of the Sailors", poemTitleAr: "أغنية البحارة",
+    poemType: "Classical", openingLine: "يا بحر الأمل يا سر الحياة",
+    poemContent: "يا بحر الأمل يا سر الحياة\nفي أمواجك تسبح قصص الرجال\nيا شاهد على عزم البحارة\nوبطولات نسجت من خيوط الأجيال",
+    attachment: "song_of_sailors.pdf", submittedAt: "2026-02-05T10:00:00Z",
+    reviewerNotes: "Pending consolidation review.",
+    finalScore: null, finalDecision: null,
     evaluations: [
-      { id: 5, juryMemberId: 3, juryMemberName: "Prof. Ahmad Al Mazrouei", linguisticScore: 9.8, poeticScore: 9.5, originalityScore: 9.3, emotionalScore: 9.6, culturalScore: 9.5, totalScore: 9.54, recommendation: "approve", notes: "Outstanding! Best Nabati poem submitted this cycle.", submittedAt: "2026-01-20T10:00:00Z" },
+      { id: 10, juryMemberName: "Prof. Ahmad Al Mazrouei", linguisticScore: 8.5, poeticScore: 8.2, originalityScore: 7.8, emotionalScore: 8.0, culturalScore: 8.5, totalScore: 8.2, recommendation: "approve", notes: "Good classical form." },
+      { id: 11, juryMemberName: "Dr. Layla Al Suwaidi",    linguisticScore: 7.5, poeticScore: 7.8, originalityScore: 8.0, emotionalScore: 7.6, culturalScore: 7.9, totalScore: 7.76, recommendation: "approve", notes: "Solid work, recommend further polish." },
+      { id: 12, juryMemberName: "Dr. Hamad Al Bloushi",    linguisticScore: 0,   poeticScore: 0,   originalityScore: 0,   emotionalScore: 0,   culturalScore: 0,   totalScore: 0,    recommendation: "no_decision", notes: "No response — evaluation closed." },
+    ],
+  },
+  15: {
+    id: 15, referenceNumber: "AHA-2026-015", status: "final_form_under_review",
+    poetName: "Saeed Al Ameri", poetNameAr: "سعيد العامري",
+    poetEmail: "s.ameri@email.com", poetPhone: "+971 50 678 9012",
+    poetNationality: "UAE", profileSource: "Auto-fetched from system",
+    requesterName: "Saeed Al Ameri", requesterNameAr: "سعيد العامري",
+    requesterRelationship: "Self", channel: "Email",
+    requestDate: "22 January 2026",
+    poemTitle: "Spirit of the Nation", poemTitleAr: "روح الأمة",
+    poemType: "Nabati", openingLine: "يا وطني يا عزيزي يا غالي القدر",
+    poemContent: "يا وطني يا عزيزي يا غالي القدر\nفي صدري نار وشوق ما لها أثر\nترابك المسك والذهب في العمر",
+    attachment: "spirit_of_nation.pdf", submittedAt: "2026-01-22T10:00:00Z",
+    reviewerNotes: "All jury evaluations received. Consolidated summary prepared.",
+    finalScore: null, finalDecision: null,
+    evaluations: [
+      { id: 20, juryMemberName: "Prof. Ahmad Al Mazrouei", linguisticScore: 9.0, poeticScore: 9.2, originalityScore: 8.9, emotionalScore: 9.1, culturalScore: 9.3, totalScore: 9.1, recommendation: "approve", notes: "Highly recommend." },
+      { id: 21, juryMemberName: "Dr. Layla Al Suwaidi",    linguisticScore: 8.8, poeticScore: 9.0, originalityScore: 9.2, emotionalScore: 8.7, culturalScore: 9.0, totalScore: 8.94, recommendation: "approve", notes: "Exceptional spirit and form." },
     ],
   },
 };
 
-const statusColors: Record<string, string> = {
-  approved: "bg-green-500/15 text-green-400",
-  rejected: "bg-red-500/15 text-red-400",
-  pending: "bg-amber-500/15 text-amber-400",
-  under_review: "bg-blue-500/15 text-blue-400",
-  jury_assigned: "bg-purple-500/15 text-purple-400",
-  evaluated: "bg-teal-500/15 text-teal-400",
-};
-
-function ScoreBar({ label, value }: { label: string; value: number }) {
+// ─── Sub-components ────────────────────────────────────────────────────────────
+function Field({ label, value, missing, editable, editValue, onEdit }: {
+  label: string; value: string; missing?: boolean;
+  editable?: boolean; editValue?: string; onEdit?: (v: string) => void;
+}) {
   return (
-    <div className="flex items-center gap-3">
-      <span className="text-xs text-foreground/40 w-20 flex-shrink-0">{label}</span>
-      <div className="flex-1 bg-border/50 rounded-full h-1.5 overflow-hidden">
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${(value / 10) * 100}%` }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className="h-full gold-gradient rounded-full"
+    <div className="flex flex-col gap-1">
+      <span className="text-xs text-foreground/40">{label}</span>
+      {editable && onEdit ? (
+        <input
+          value={editValue ?? value}
+          onChange={(e) => onEdit(e.target.value)}
+          className="bg-background/60 border border-gold/40 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gold/70 transition-all"
         />
-      </div>
-      <span className="text-xs text-gold font-semibold w-8 text-right">{value.toFixed(1)}</span>
+      ) : (
+        <div className={`rounded-lg px-3 py-2 text-sm border ${
+          missing
+            ? "bg-red-500/10 border-red-500/40 text-red-400"
+            : "bg-background/30 border-border/30 text-foreground/80"
+        }`}>
+          {missing ? "Missing — please fill" : (value || "—")}
+        </div>
+      )}
     </div>
   );
 }
 
+// ─── Main component ────────────────────────────────────────────────────────────
 export default function SubmissionDetail() {
-  const { t, lang } = useLanguage();
+  const { lang } = useLanguage();
+  const { isDark } = useTheme();
   const params = useParams<{ id: string }>();
   const id = parseInt(params.id || "0", 10);
-  const { data } = useGetSubmission(id);
+  const user = getAuthUser();
+  const isReviewer = user?.role === "reviewer" || user?.role === "sysadmin" || user?.role === "admin";
 
-  const submission = data || fakeDetails[id] || fakeDetails[1];
+  const initialSub = fakeDetails[id] ?? fakeDetails[2];
+  const [submission, setSubmission] = useState<any>(initialSub);
+  const [editMode, setEditMode] = useState(false);
+  const [edits, setEdits] = useState<Record<string, string>>({});
+  const [toast, setToast] = useState<string | null>(null);
+  const [showJuryModal, setShowJuryModal] = useState(false);
+  const [showJuryForm, setShowJuryForm] = useState(false);
+  const [selectedJury, setSelectedJury] = useState<number[]>([]);
+  const [deadline, setDeadline] = useState("48");
+  const [consolidationNote, setConsolidationNote] = useState("");
 
-  if (!submission) {
+  const statusColors = isDark ? statusColorsDark : statusColorsLight;
+  const currentStageIdx = stageIndex(submission.status);
+
+  // Missing field detection
+  const missingFields: string[] = [];
+  if (!submission.openingLine) missingFields.push("Opening line");
+  if (!submission.poemContent) missingFields.push("Full poem content");
+
+  const hasMissing = missingFields.length > 0;
+
+  function showToast(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3200);
+  }
+
+  function applyEdit(field: string, val: string) {
+    setEdits((prev) => ({ ...prev, [field]: val }));
+  }
+
+  function saveEdits() {
+    setSubmission((prev: any) => ({ ...prev, ...edits }));
+    setEdits({});
+    setEditMode(false);
+    showToast("Changes saved — logged to audit trail");
+  }
+
+  function markPendingInfo() {
+    setSubmission((prev: any) => ({ ...prev, status: "pending_information" }));
+    showToast("Status set to Pending Information Update");
+  }
+
+  function markUnderReview() {
+    setSubmission((prev: any) => ({ ...prev, status: "under_review" }));
+    showToast("Status set to Under Review");
+  }
+
+  function markReadyForJury() {
+    if (hasMissing) {
+      showToast("Cannot mark ready — please fill missing fields first");
+      return;
+    }
+    setSubmission((prev: any) => ({ ...prev, status: "jury_form_under_review" }));
+    setShowJuryForm(true);
+    showToast("Jury form generated — please review before assigning");
+  }
+
+  function confirmJuryForm() {
+    setShowJuryForm(false);
+    setSubmission((prev: any) => ({ ...prev, status: "jury_form_under_review" }));
+    showToast("Jury form locked. Proceed to assign jury members.");
+  }
+
+  function dispatchToJury() {
+    if (selectedJury.length === 0) {
+      showToast("Please select at least one jury member");
+      return;
+    }
+    setShowJuryModal(false);
+    setSubmission((prev: any) => ({ ...prev, status: "sent_to_jury" }));
+    showToast(`Dispatched to ${selectedJury.length} jury member(s) — deadline: ${deadline}h`);
+  }
+
+  function closeJuryStage() {
+    setSubmission((prev: any) => ({ ...prev, status: "jury_review_closed" }));
+    showToast("Jury stage closed manually");
+  }
+
+  function proceedToConsolidation() {
+    setSubmission((prev: any) => ({ ...prev, status: "under_consolidation" }));
+    showToast("Moved to consolidation");
+  }
+
+  function generateFinalForm() {
+    setSubmission((prev: any) => ({ ...prev, status: "final_form_under_review" }));
+    showToast("Final executive form generated — please review");
+  }
+
+  function sendToSultan() {
+    setSubmission((prev: any) => ({ ...prev, status: "sent_for_final_decision" }));
+    showToast("Final form sent to Dr. Sultan for decision");
+  }
+
+  // Reviewer action buttons based on current status
+  function ReviewerActions() {
+    const s = submission.status;
     return (
-      <DashboardLayout>
-        <div className="text-center py-20 text-foreground/40">
-          Submission not found.
-          <Link href="/dashboard/submissions" className="block mt-4 text-gold hover:underline text-sm">
-            Back to submissions
-          </Link>
+      <div className="glass-panel rounded-xl border border-gold/15 p-5 space-y-3">
+        <h3 className="text-xs font-semibold text-foreground/40 uppercase tracking-wider">
+          Reviewer Actions
+        </h3>
+
+        <div className="flex flex-wrap gap-2">
+          {/* Stage 2 – Initial Review */}
+          {(s === "received" || s === "under_review" || s === "pending_information") && (
+            <>
+              {!editMode ? (
+                <button
+                  onClick={() => setEditMode(true)}
+                  className="px-4 py-2 rounded-lg border border-gold/30 text-gold hover:bg-gold/10 text-sm font-medium transition-all"
+                >
+                  Edit request data
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={saveEdits}
+                    className="px-4 py-2 rounded-lg gold-gradient text-navy text-sm font-semibold transition-all"
+                  >
+                    Save changes
+                  </button>
+                  <button
+                    onClick={() => { setEdits({}); setEditMode(false); }}
+                    className="px-4 py-2 rounded-lg border border-border text-foreground/50 hover:border-gold/20 text-sm transition-all"
+                  >
+                    Cancel
+                  </button>
+                </>
+              )}
+              {s !== "under_review" && (
+                <button
+                  onClick={markUnderReview}
+                  className="px-4 py-2 rounded-lg border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 text-sm font-medium transition-all"
+                >
+                  Mark as Under Review
+                </button>
+              )}
+              <button
+                onClick={markReadyForJury}
+                disabled={hasMissing}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border ${
+                  hasMissing
+                    ? "opacity-40 cursor-not-allowed border-border text-foreground/40"
+                    : "border-violet-500/30 text-violet-400 hover:bg-violet-500/10"
+                }`}
+                title={hasMissing ? `Missing: ${missingFields.join(", ")}` : undefined}
+              >
+                Mark ready → generate jury form
+              </button>
+              {s !== "pending_information" && (
+                <button
+                  onClick={markPendingInfo}
+                  className="px-4 py-2 rounded-lg border border-orange-500/30 text-orange-400 hover:bg-orange-500/10 text-sm font-medium transition-all"
+                >
+                  Mark pending information update
+                </button>
+              )}
+            </>
+          )}
+
+          {/* Stage 3 – Jury form review */}
+          {s === "jury_form_under_review" && (
+            <>
+              <button
+                onClick={() => setShowJuryForm(true)}
+                className="px-4 py-2 rounded-lg border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/10 text-sm font-medium transition-all"
+              >
+                Preview jury form
+              </button>
+              <button
+                onClick={() => setShowJuryModal(true)}
+                className="px-4 py-2 rounded-lg gold-gradient text-navy text-sm font-semibold transition-all"
+              >
+                Confirm form → Assign jury
+              </button>
+            </>
+          )}
+
+          {/* Stage 4 – Already sent to jury / monitoring */}
+          {(s === "sent_to_jury" || s === "under_jury_review") && (
+            <button
+              onClick={closeJuryStage}
+              className="px-4 py-2 rounded-lg border border-teal-500/30 text-teal-400 hover:bg-teal-500/10 text-sm font-medium transition-all"
+            >
+              Close jury stage manually
+            </button>
+          )}
+
+          {/* Stage 6→7 – Jury closed → consolidation */}
+          {s === "jury_review_closed" && (
+            <button
+              onClick={proceedToConsolidation}
+              className="px-4 py-2 rounded-lg border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 text-sm font-medium transition-all"
+            >
+              Begin consolidation
+            </button>
+          )}
+
+          {/* Stage 7 – Consolidation */}
+          {s === "under_consolidation" && (
+            <button
+              onClick={generateFinalForm}
+              className="px-4 py-2 rounded-lg gold-gradient text-navy text-sm font-semibold transition-all"
+            >
+              Generate final executive form
+            </button>
+          )}
+
+          {/* Stage 8 – Final form review */}
+          {s === "final_form_under_review" && (
+            <button
+              onClick={sendToSultan}
+              className="px-4 py-2 rounded-lg gold-gradient text-navy text-sm font-semibold transition-all"
+            >
+              Send to Dr. Sultan
+            </button>
+          )}
+
+          {/* Terminal states */}
+          {(s === "sent_for_final_decision" || s === "approved" || s === "rejected" || s === "archived") && (
+            <p className="text-sm text-foreground/40 italic">
+              {s === "sent_for_final_decision" ? "Awaiting Dr. Sultan's decision." : "This case is closed."}
+            </p>
+          )}
         </div>
-      </DashboardLayout>
+
+        <p className="text-[10px] text-foreground/30">All edits are tracked in the audit log automatically.</p>
+      </div>
     );
   }
 
-  const recommendationColors: Record<string, string> = {
-    approve: "text-green-400",
-    reject: "text-red-400",
-    needs_revision: "text-amber-400",
-  };
-
   return (
     <DashboardLayout>
-      {/* Back */}
-      <Link href="/dashboard/submissions" className="inline-flex items-center gap-2 text-sm text-foreground/50 hover:text-gold mb-6 transition-colors">
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg>
+      {/* ── Back ────────────────────────────────────────────────────────────── */}
+      <Link href="/dashboard/submissions" className="inline-flex items-center gap-2 text-sm text-foreground/50 hover:text-gold mb-5 transition-colors">
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        </svg>
         Back to Submissions
       </Link>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Left - main info */}
-        <div className="lg:col-span-2 space-y-4">
-          {/* Header */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="glass-panel rounded-xl p-6 border border-gold/10"
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <div className="text-xs font-mono text-foreground/40 mb-1">{submission.referenceNumber}</div>
-                <h1 className="text-2xl font-display font-bold">{lang === "ar" && submission.poemTitleAr ? submission.poemTitleAr : submission.poemTitle}</h1>
-                {submission.poemTitleAr && lang !== "ar" && (
-                  <p className="text-gold/60 font-arabic text-lg mt-1" dir="rtl">{submission.poemTitleAr}</p>
+      {/* ── Stage breadcrumb ─────────────────────────────────────────────────── */}
+      <div className="glass-panel rounded-xl border border-gold/10 p-3 mb-5 overflow-x-auto">
+        <div className="flex items-center gap-0 min-w-max">
+          {STAGES.map((stage, i) => {
+            const done = i < currentStageIdx;
+            const active = i === currentStageIdx;
+            return (
+              <div key={stage.key} className="flex items-center">
+                <div className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                  active
+                    ? "gold-gradient text-navy"
+                    : done
+                      ? "text-gold/60 bg-gold/5"
+                      : "text-foreground/30"
+                }`}>
+                  {i + 1}. {stage.label}
+                </div>
+                {i < STAGES.length - 1 && (
+                  <svg className={`w-3 h-3 mx-0.5 flex-shrink-0 ${done ? "text-gold/40" : "text-foreground/15"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 )}
               </div>
-              <span className={`px-3 py-1.5 rounded-full text-xs font-medium ${statusColors[submission.status] || ""}`}>
-                {t(submission.status) || submission.status}
-              </span>
-            </div>
-
-            <div className="grid sm:grid-cols-3 gap-4 text-sm">
-              <div>
-                <p className="text-xs text-foreground/40 mb-0.5">Poet</p>
-                <p className="font-medium">{lang === "ar" && submission.poetNameAr ? submission.poetNameAr : submission.poetName}</p>
-              </div>
-              <div>
-                <p className="text-xs text-foreground/40 mb-0.5">Nationality</p>
-                <p className="font-medium">{submission.poetNationality}</p>
-              </div>
-              <div>
-                <p className="text-xs text-foreground/40 mb-0.5">Type</p>
-                <p className="font-medium capitalize">{submission.poemType}</p>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Poem content */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="glass-panel rounded-xl p-6 border border-gold/10"
-          >
-            <h3 className="text-sm font-semibold text-foreground/60 mb-4 uppercase tracking-wider">Poem Text</h3>
-            <div
-              className="font-arabic text-xl leading-loose text-foreground/90 whitespace-pre-line text-right"
-              dir="rtl"
-            >
-              {submission.poemContent}
-            </div>
-          </motion.div>
-
-          {/* Evaluations */}
-          {submission.evaluations?.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="glass-panel rounded-xl p-6 border border-gold/10"
-            >
-              <h3 className="text-sm font-semibold text-foreground/60 mb-4 uppercase tracking-wider">{t("evaluations")}</h3>
-              <div className="space-y-6">
-                {submission.evaluations.map((ev: any) => (
-                  <div key={ev.id} className="border border-border/50 rounded-xl p-5 bg-background/30">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full gold-gradient flex items-center justify-center text-navy font-bold text-sm">
-                          {ev.juryMemberName?.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm">{ev.juryMemberName}</p>
-                          <p className="text-xs text-foreground/40">Jury Member</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-display font-bold gold-gradient-text">{ev.totalScore?.toFixed(1)}</div>
-                        <div className={`text-xs font-medium capitalize ${recommendationColors[ev.recommendation] || ""}`}>{ev.recommendation?.replace("_", " ")}</div>
-                      </div>
-                    </div>
-                    <div className="space-y-2 mb-4">
-                      <ScoreBar label={t("linguistic")} value={ev.linguisticScore} />
-                      <ScoreBar label={t("poetic")} value={ev.poeticScore} />
-                      <ScoreBar label={t("originality")} value={ev.originalityScore} />
-                      <ScoreBar label={t("emotional")} value={ev.emotionalScore} />
-                      <ScoreBar label={t("cultural")} value={ev.culturalScore} />
-                    </div>
-                    {ev.notes && (
-                      <p className="text-sm text-foreground/60 italic border-t border-border/30 pt-3 mt-3">
-                        "{ev.notes}"
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          )}
+            );
+          })}
         </div>
+      </div>
 
-        {/* Right sidebar */}
-        <div className="space-y-4">
-          {/* Final score */}
-          {submission.finalScore && (
-            <motion.div
-              initial={{ opacity: 0, x: 10 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="glass-panel rounded-xl p-6 border border-gold/20 text-center"
-            >
-              <div className="text-xs text-foreground/40 mb-2 uppercase tracking-wider">Final Score</div>
-              <div className="text-5xl font-display font-bold gold-gradient-text mb-2">{submission.finalScore.toFixed(1)}</div>
-              <div className="text-xs text-foreground/30">/ 10.0</div>
-              {submission.finalDecision && (
-                <div className="mt-4 text-xs text-foreground/60 italic border-t border-gold/10 pt-4">
-                  {submission.finalDecision}
-                </div>
-              )}
-            </motion.div>
-          )}
-
-          {/* Poet contact */}
-          <motion.div
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
-            className="glass-panel rounded-xl p-5 border border-gold/10"
-          >
-            <h3 className="text-xs font-semibold text-foreground/40 uppercase tracking-wider mb-3">Poet Contact</h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center gap-2 text-foreground/60">
-                <svg className="w-4 h-4 text-gold/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                {submission.poetEmail}
-              </div>
-              {submission.poetPhone && (
-                <div className="flex items-center gap-2 text-foreground/60">
-                  <svg className="w-4 h-4 text-gold/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.948V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
-                  {submission.poetPhone}
-                </div>
-              )}
+      {/* ── Reviewer identity bar ────────────────────────────────────────────── */}
+      {isReviewer && (
+        <div className="glass-panel rounded-xl border border-gold/10 px-5 py-3.5 mb-5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full gold-gradient flex items-center justify-center text-navy font-bold text-sm flex-shrink-0">
+              {user?.name?.charAt(0) ?? "R"}
             </div>
-          </motion.div>
+            <div>
+              <p className="text-sm font-semibold">{user?.name ?? "Reviewer"}</p>
+              <p className="text-xs text-foreground/40">Application Reviewer</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-foreground/40">AHA — National Poets Evaluation</p>
+            <span className={`px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap ${statusColors[submission.status] ?? ""}`}>
+              {statusLabel(submission.status)}
+            </span>
+          </div>
+        </div>
+      )}
 
-          {/* Reviewer notes */}
-          {submission.reviewerNotes && (
-            <motion.div
-              initial={{ opacity: 0, x: 10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.15 }}
-              className="glass-panel rounded-xl p-5 border border-gold/10"
-            >
-              <h3 className="text-xs font-semibold text-foreground/40 uppercase tracking-wider mb-3">Reviewer Notes</h3>
-              <p className="text-sm text-foreground/60 leading-relaxed">{submission.reviewerNotes}</p>
-            </motion.div>
-          )}
-
-          {/* Timeline */}
+      {/* ── Missing data warning ─────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {hasMissing && (
           <motion.div
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-            className="glass-panel rounded-xl p-5 border border-gold/10"
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="mb-5 px-5 py-3 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-400 text-sm flex items-center gap-2"
           >
-            <h3 className="text-xs font-semibold text-foreground/40 uppercase tracking-wider mb-3">Timeline</h3>
-            <div className="space-y-3">
-              {[
-                { label: "Submitted", date: submission.submittedAt, done: true },
-                { label: "Under Review", date: null, done: ["under_review","jury_assigned","evaluated","approved","rejected"].includes(submission.status) },
-                { label: "Jury Assigned", date: null, done: ["jury_assigned","evaluated","approved","rejected"].includes(submission.status) },
-                { label: "Evaluated", date: null, done: ["evaluated","approved","rejected"].includes(submission.status) },
-                { label: "Final Decision", date: null, done: ["approved","rejected"].includes(submission.status) },
-              ].map((step, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <div className={`w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center ${step.done ? "gold-gradient" : "border border-border"}`}>
-                    {step.done && <svg className="w-3 h-3 text-navy" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>}
+            <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            Missing data detected — {missingFields.join(", ")} {missingFields.length > 1 ? "are" : "is"} empty. Fill before marking Ready.
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="space-y-4">
+        {/* ── Poet information ─────────────────────────────────────────────── */}
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="glass-panel rounded-xl border border-gold/10 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider">Poet information</h2>
+            <span className={`px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap ${statusColors[submission.status] ?? ""}`}>
+              {statusLabel(submission.status)}
+            </span>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Field label="Poet name" value={lang === "ar" ? submission.poetNameAr : submission.poetName}
+              editable={editMode} editValue={edits["poetName"]} onEdit={(v) => applyEdit("poetName", v)} />
+            <Field label="Mobile" value={submission.poetPhone}
+              editable={editMode} editValue={edits["poetPhone"]} onEdit={(v) => applyEdit("poetPhone", v)} />
+            <Field label="Email" value={submission.poetEmail}
+              editable={editMode} editValue={edits["poetEmail"]} onEdit={(v) => applyEdit("poetEmail", v)} />
+            <Field label="Profile source" value={submission.profileSource} />
+          </div>
+        </motion.div>
+
+        {/* ── Requester information ─────────────────────────────────────────── */}
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="glass-panel rounded-xl border border-gold/10 p-5">
+          <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider mb-4">Requester information</h2>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Field label="Requester name" value={lang === "ar" ? submission.requesterNameAr : submission.requesterName}
+              editable={editMode} editValue={edits["requesterName"]} onEdit={(v) => applyEdit("requesterName", v)} />
+            <Field label="Relationship to poet" value={submission.requesterRelationship}
+              editable={editMode} editValue={edits["requesterRelationship"]} onEdit={(v) => applyEdit("requesterRelationship", v)} />
+            <Field label="Channel / source" value={submission.channel}
+              editable={editMode} editValue={edits["channel"]} onEdit={(v) => applyEdit("channel", v)} />
+            <Field label="Request date" value={submission.requestDate} />
+          </div>
+        </motion.div>
+
+        {/* ── Poem information ──────────────────────────────────────────────── */}
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-panel rounded-xl border border-gold/10 p-5">
+          <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider mb-4">Poem information</h2>
+          <div className="grid sm:grid-cols-2 gap-4 mb-4">
+            <Field label="Poem title" value={lang === "ar" ? submission.poemTitleAr : submission.poemTitle}
+              editable={editMode} editValue={edits["poemTitle"]} onEdit={(v) => applyEdit("poemTitle", v)} />
+            <Field label="Poem type" value={submission.poemType} />
+            <div className="sm:col-span-2">
+              <Field label="Opening line" value={edits["openingLine"] ?? submission.openingLine}
+                missing={!submission.openingLine && !edits["openingLine"]}
+                editable={editMode} editValue={edits["openingLine"]} onEdit={(v) => applyEdit("openingLine", v)} />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-foreground/40">Full poem content</span>
+            {editMode ? (
+              <textarea
+                rows={6}
+                value={edits["poemContent"] ?? submission.poemContent}
+                onChange={(e) => applyEdit("poemContent", e.target.value)}
+                dir="rtl"
+                className="bg-background/60 border border-gold/40 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gold/70 transition-all font-arabic leading-loose text-right"
+              />
+            ) : (
+              <div className="rounded-xl border border-gold/15 bg-gradient-to-br from-gold/5 to-transparent p-5">
+                <pre dir="rtl" className="font-arabic text-lg leading-loose text-foreground/90 whitespace-pre-wrap text-right">
+                  {submission.poemContent || "Missing — please fill"}
+                </pre>
+              </div>
+            )}
+          </div>
+          <div className="mt-4">
+            <Field label="Attachment" value={submission.attachment ? `${submission.attachment} — uploaded` : "No attachment"} />
+          </div>
+        </motion.div>
+
+        {/* ── Request metadata ──────────────────────────────────────────────── */}
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="glass-panel rounded-xl border border-gold/10 p-5">
+          <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider mb-4">Request metadata</h2>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Field label="Request ID" value={submission.referenceNumber} />
+            <Field label="Date created" value={submission.requestDate} />
+          </div>
+        </motion.div>
+
+        {/* ── Jury evaluations (if any) ─────────────────────────────────────── */}
+        {submission.evaluations?.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-panel rounded-xl border border-gold/10 p-5">
+            <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider mb-4">Jury Evaluations</h2>
+
+            {/* Summary stats */}
+            {(() => {
+              const evs = submission.evaluations;
+              const accepted = evs.filter((e: any) => e.recommendation === "approve").length;
+              const rejected = evs.filter((e: any) => e.recommendation === "reject").length;
+              const noDecision = evs.filter((e: any) => e.recommendation === "no_decision").length;
+              return (
+                <div className="grid grid-cols-3 gap-3 mb-5">
+                  <div className="rounded-lg bg-green-500/10 border border-green-500/20 p-3 text-center">
+                    <p className="text-2xl font-display font-bold text-green-400">{accepted}</p>
+                    <p className="text-xs text-foreground/40 mt-0.5">Accepted</p>
                   </div>
-                  <div>
-                    <p className={`text-xs font-medium ${step.done ? "text-foreground" : "text-foreground/30"}`}>{step.label}</p>
-                    {step.date && <p className="text-xs text-foreground/30">{new Date(step.date).toLocaleDateString()}</p>}
+                  <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-center">
+                    <p className="text-2xl font-display font-bold text-red-400">{rejected}</p>
+                    <p className="text-xs text-foreground/40 mt-0.5">Rejected</p>
                   </div>
+                  <div className="rounded-lg bg-gray-500/10 border border-gray-500/20 p-3 text-center">
+                    <p className="text-2xl font-display font-bold text-foreground/40">{noDecision}</p>
+                    <p className="text-xs text-foreground/40 mt-0.5">No Decision</p>
+                  </div>
+                </div>
+              );
+            })()}
+
+            <div className="space-y-4">
+              {submission.evaluations.map((ev: any) => (
+                <div key={ev.id} className="border border-border/50 rounded-xl p-4 bg-background/30">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full gold-gradient flex items-center justify-center text-navy font-bold text-xs">
+                        {ev.juryMemberName?.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{ev.juryMemberName}</p>
+                        <p className="text-xs text-foreground/40">Jury Member</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      {ev.recommendation === "no_decision" ? (
+                        <span className="text-xs text-foreground/40 italic">No Decision — Evaluation Closed</span>
+                      ) : (
+                        <div className={`text-xs font-medium capitalize ${ev.recommendation === "approve" ? "text-green-400" : "text-red-400"}`}>
+                          {ev.recommendation === "approve" ? "Approve" : "Reject"}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {ev.notes && (
+                    <p className="text-sm text-foreground/60 italic border-t border-border/30 pt-3">
+                      "{ev.notes}"
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
+
+            {/* Consolidation notes (visible during consolidation stage) */}
+            {submission.status === "under_consolidation" && (
+              <div className="mt-4 space-y-2">
+                <label className="text-xs text-foreground/40 uppercase tracking-wider">Consolidation summary / reviewer notes</label>
+                <textarea
+                  rows={4}
+                  value={consolidationNote}
+                  onChange={(e) => setConsolidationNote(e.target.value)}
+                  placeholder="Add overall summary and recommendation before generating final form…"
+                  className="w-full bg-background/50 border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gold/50 resize-none"
+                />
+              </div>
+            )}
           </motion.div>
-        </div>
+        )}
+
+        {/* ── Reviewer actions ──────────────────────────────────────────────── */}
+        {isReviewer && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+            <ReviewerActions />
+          </motion.div>
+        )}
       </div>
+
+      {/* ── Jury form preview modal (Stage 3) ────────────────────────────────── */}
+      <AnimatePresence>
+        {showJuryForm && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setShowJuryForm(false)}
+            className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 16, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 16, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="glass-panel rounded-2xl border border-gold/30 w-full max-w-2xl max-h-[85vh] overflow-y-auto bg-card"
+            >
+              <div className="sticky top-0 bg-card/95 backdrop-blur-md border-b border-gold/15 px-6 py-4 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-gold/70 font-semibold">Jury Evaluation Form Preview</p>
+                  <h3 className="text-lg font-display font-bold mt-0.5">{submission.referenceNumber}</h3>
+                </div>
+                <button onClick={() => setShowJuryForm(false)} className="w-9 h-9 rounded-full hover:bg-foreground/10 flex items-center justify-center text-foreground/60">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+              <div className="p-6 space-y-5">
+                <div className="px-4 py-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400 text-xs">
+                  Poet and requester identity are hidden in this form — jury members will only see the poem details below.
+                </div>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Poem title" value={submission.poemTitle} />
+                    <Field label="Poem type" value={submission.poemType} />
+                  </div>
+                  <Field label="Opening line" value={submission.openingLine} />
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-foreground/40">Full poem content</span>
+                    <div className="rounded-xl border border-gold/15 bg-gold/5 p-5">
+                      <pre dir="rtl" className="font-arabic text-lg leading-loose text-foreground/90 whitespace-pre-wrap text-right">
+                        {submission.poemContent}
+                      </pre>
+                    </div>
+                  </div>
+                </div>
+                <div className="pt-4 border-t border-border/50 flex gap-3">
+                  <button
+                    onClick={confirmJuryForm}
+                    className="flex-1 py-3 rounded-xl gold-gradient text-navy font-bold text-sm"
+                  >
+                    Confirm & lock jury form
+                  </button>
+                  <button
+                    onClick={() => setShowJuryForm(false)}
+                    className="px-5 py-3 rounded-xl border border-border text-foreground/50 hover:border-gold/20 text-sm transition-all"
+                  >
+                    Edit further
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Jury assign modal (Stage 4) ───────────────────────────────────────── */}
+      <AnimatePresence>
+        {showJuryModal && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setShowJuryModal(false)}
+            className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 16, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 16, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="glass-panel rounded-2xl border border-gold/30 w-full max-w-lg bg-card"
+            >
+              <div className="sticky top-0 bg-card/95 backdrop-blur-md border-b border-gold/15 px-6 py-4 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-gold/70 font-semibold">Assign Jury Members</p>
+                  <h3 className="text-base font-display font-bold mt-0.5">{submission.referenceNumber} · {submission.poemTitle}</h3>
+                </div>
+                <button onClick={() => setShowJuryModal(false)} className="w-9 h-9 rounded-full hover:bg-foreground/10 flex items-center justify-center text-foreground/60">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+
+              <div className="p-6 space-y-5">
+                {/* Jury selection */}
+                <div>
+                  <label className="text-xs text-foreground/40 uppercase tracking-wider mb-2 block">
+                    Select jury members
+                  </label>
+                  <div className="space-y-2">
+                    {JURY_MEMBERS.map((j) => {
+                      const checked = selectedJury.includes(j.id);
+                      return (
+                        <button
+                          key={j.id}
+                          onClick={() => setSelectedJury((prev) =>
+                            prev.includes(j.id) ? prev.filter((x) => x !== j.id) : [...prev, j.id]
+                          )}
+                          className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${
+                            checked
+                              ? "border-gold/50 bg-gold/10"
+                              : "border-border hover:border-gold/20"
+                          }`}
+                        >
+                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                            checked ? "border-gold bg-gold" : "border-border"
+                          }`}>
+                            {checked && <svg className="w-3 h-3 text-navy" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium">{j.name}</p>
+                            <p className="text-xs text-foreground/40">{j.specialization}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Deadline */}
+                <div>
+                  <label className="text-xs text-foreground/40 uppercase tracking-wider mb-2 block">
+                    Evaluation deadline (hours)
+                  </label>
+                  <div className="flex gap-2">
+                    {["24", "48", "72"].map((h) => (
+                      <button
+                        key={h}
+                        onClick={() => setDeadline(h)}
+                        className={`flex-1 py-2 rounded-lg border text-sm font-semibold transition-all ${
+                          deadline === h
+                            ? "gold-gradient text-navy border-transparent"
+                            : "border-border text-foreground/50 hover:border-gold/30"
+                        }`}
+                      >
+                        {h}h
+                      </button>
+                    ))}
+                    <input
+                      type="number"
+                      min={1}
+                      value={!["24","48","72"].includes(deadline) ? deadline : ""}
+                      onChange={(e) => setDeadline(e.target.value)}
+                      placeholder="Custom"
+                      className="flex-1 bg-background/50 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gold/50 text-center"
+                    />
+                  </div>
+                  <p className="text-xs text-foreground/30 mt-1.5">Default: 48 hours (configurable per BRD)</p>
+                </div>
+
+                {/* Dispatch */}
+                <button
+                  onClick={dispatchToJury}
+                  disabled={selectedJury.length === 0}
+                  className={`w-full py-3.5 rounded-xl font-bold text-base transition-all ${
+                    selectedJury.length > 0
+                      ? "gold-gradient text-navy shadow-lg shadow-gold/20"
+                      : "bg-foreground/10 text-foreground/30 cursor-not-allowed"
+                  }`}
+                >
+                  Dispatch to jury ({selectedJury.length} selected)
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Toast ────────────────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-6 right-6 z-[200] glass-panel border border-gold/30 px-5 py-3 rounded-xl shadow-2xl max-w-sm"
+          >
+            <p className="text-sm font-medium">{toast}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </DashboardLayout>
   );
 }

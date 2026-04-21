@@ -77,7 +77,7 @@ function Router() {
         <ProtectedRoute component={JuryPage} allowRoles={["reviewer", "sysadmin", "admin"]} />
       </Route>
       <Route path="/dashboard/competitions">
-        <ProtectedRoute component={CompetitionsPage} allowRoles={["reviewer", "sultan", "sysadmin", "admin", "audit"]} />
+        <ProtectedRoute component={CompetitionsPage} allowRoles={["sultan", "sysadmin", "admin", "audit"]} />
       </Route>
       <Route path="/dashboard/settings">
         <ProtectedRoute component={SettingsPage} />

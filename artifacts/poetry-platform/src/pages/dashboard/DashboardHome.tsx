@@ -123,7 +123,11 @@ export default function DashboardHome() {
   const isJury = user?.role === "jury";
   const isReviewer = user?.role === "reviewer";
   const isSultan = user?.role === "sultan" || (user?.role as string) === "dr_sultan";
-  const useJuryStyleDashboard = isJury || isReviewer || isSultan;
+  const isSystemAdmin =
+    user?.role === "sysadmin" ||
+    user?.role === "system_administrator" ||
+    user?.role === "admin";
+  const useJuryStyleDashboard = isJury || isReviewer || isSultan || isSystemAdmin;
   const { data: stats } = useGetDashboardStats();
   const { data: activityData } = useGetRecentActivity({ limit: 8 });
   const { data: trendsData } = useGetSubmissionTrends();
@@ -217,17 +221,17 @@ export default function DashboardHome() {
           >
             <h3 className="text-sm font-semibold mb-4">Submission Trends</h3>
             <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={isReviewer || isSultan ? trends : fallbackTrends}>
+              <LineChart data={isReviewer || isSultan || isSystemAdmin ? trends : fallbackTrends}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(200,169,110,0.08)" />
                 <XAxis dataKey="month" tick={{ fill: "rgba(200,169,110,0.5)", fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: "rgba(200,169,110,0.5)", fontSize: 11 }} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={{ background: "rgba(10,22,40,0.95)", border: "1px solid rgba(200,169,110,0.2)", borderRadius: 8, fontSize: 12 }} />
                 <Line type="monotone" dataKey="submissions" stroke="#C8A96E" strokeWidth={2} dot={false} />
-                {(isReviewer || isSultan) && <Line type="monotone" dataKey="approved" stroke="#1A7A6B" strokeWidth={2} dot={false} />}
-                {(isReviewer || isSultan) && <Line type="monotone" dataKey="rejected" stroke="#B85C5C" strokeWidth={2} dot={false} />}
+                {(isReviewer || isSultan || isSystemAdmin) && <Line type="monotone" dataKey="approved" stroke="#1A7A6B" strokeWidth={2} dot={false} />}
+                {(isReviewer || isSultan || isSystemAdmin) && <Line type="monotone" dataKey="rejected" stroke="#B85C5C" strokeWidth={2} dot={false} />}
               </LineChart>
             </ResponsiveContainer>
-            {(isReviewer || isSultan) && (
+            {(isReviewer || isSultan || isSystemAdmin) && (
               <div className="flex gap-4 mt-3">
                 {[{ label: "Submissions", color: "#C8A96E" }, { label: "Approved", color: "#1A7A6B" }, { label: "Rejected", color: "#B85C5C" }].map((item) => (
                   <div key={item.label} className="flex items-center gap-1.5 text-xs text-foreground/50">
@@ -317,6 +321,37 @@ export default function DashboardHome() {
         </motion.div>
       </div>
       </>
+      )}
+
+      {isSystemAdmin && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="glass-panel rounded-xl p-5 border border-gold/10 mb-6"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold">Administration Panels</h3>
+            <span className="text-xs text-foreground/40">Quick access to all 7 configuration screens</span>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {[
+              { label: "User Management", href: "/dashboard/users" },
+              { label: "Roles & Permissions", href: "/dashboard/roles-permissions" },
+              { label: "Workflow Config", href: "/dashboard/workflow-config" },
+              { label: "Form Config", href: "/dashboard/form-config" },
+              { label: "Notification Templates", href: "/dashboard/notification-templates" },
+              { label: "Jury Pool", href: "/dashboard/jury" },
+              { label: "Audit Log", href: "/dashboard/audit-log" },
+            ].map((item) => (
+              <Link key={item.href} href={item.href}>
+                <div className="rounded-lg border border-gold/20 bg-gold/5 hover:bg-gold/10 transition-colors px-3 py-2.5 text-sm text-foreground/80">
+                  {item.label}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </motion.div>
       )}
 
       {!useJuryStyleDashboard && (

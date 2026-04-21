@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { LanguageProvider } from "@/hooks/useLanguage";
 import { ThemeProvider } from "@/hooks/useTheme";
+import { AccessibilityProvider } from "@/hooks/useAccessibility";
 import { isAuthenticated } from "@/lib/auth";
 import HomePage from "@/pages/HomePage";
 import SubmitPage from "@/pages/SubmitPage";
@@ -78,11 +79,13 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <ThemeProvider>
-          <LanguageProvider>
-            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-              <Router />
-            </WouterRouter>
-          </LanguageProvider>
+          <AccessibilityProvider>
+            <LanguageProvider>
+              <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+                <Router />
+              </WouterRouter>
+            </LanguageProvider>
+          </AccessibilityProvider>
         </ThemeProvider>
         <Toaster />
       </TooltipProvider>

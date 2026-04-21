@@ -3,76 +3,145 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, Link } from "wouter";
 import { useLanguage } from "@/hooks/useLanguage";
 import { useTheme } from "@/hooks/useTheme";
-import { useLogin } from "@workspace/api-client-react";
-import { setAuthUser } from "@/lib/auth";
+import { setAuthUser, type UserRole, type AuthUser } from "@/lib/auth";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { FloatingMusicNotes } from "@/components/FloatingMusicNotes";
 
-const demoCredentials = [
-  { email: "admin@aha.ae", password: "admin123", role: "Administrator", roleAr: "مسؤول النظام", color: "from-gold/15 to-amber-900/5 border-gold/20" },
-  { email: "reviewer@aha.ae", password: "reviewer123", role: "App Reviewer", roleAr: "مراجع الطلبات", color: "from-teal-900/20 to-teal-800/5 border-teal-700/20" },
-  { email: "jury@aha.ae", password: "jury123", role: "Jury Member", roleAr: "عضو لجنة التحكيم", color: "from-indigo-900/20 to-indigo-800/5 border-indigo-700/20" },
-];
+interface AccountProfile {
+  email: string;
+  password: string;
+  role: UserRole;
+  displayName: string;
+  displayNameAr: string;
+  title: string;
+  titleAr: string;
+  initial: string;
+  ringDark: string;
+  ringLight: string;
+  juryId?: number;
+}
 
-const demoCLight = [
-  { email: "admin@aha.ae", password: "admin123", role: "Administrator", roleAr: "مسؤول النظام", color: "from-amber-50 to-amber-100/80 border-amber-300/60" },
-  { email: "reviewer@aha.ae", password: "reviewer123", role: "App Reviewer", roleAr: "مراجع الطلبات", color: "from-teal-50 to-teal-100/80 border-teal-300/60" },
-  { email: "jury@aha.ae", password: "jury123", role: "Jury Member", roleAr: "عضو لجنة التحكيم", color: "from-indigo-50 to-indigo-100/80 border-indigo-300/60" },
+const accounts: AccountProfile[] = [
+  {
+    email: "s.almansoori@aha.gov.ae",
+    password: "Sultan@2026",
+    role: "sultan",
+    displayName: "Dr. Sultan Al Mansoori",
+    displayNameAr: "د. سلطان المنصوري",
+    title: "Final Decision Authority",
+    titleAr: "صاحب القرار النهائي",
+    initial: "S",
+    ringDark: "from-amber-500/20 to-amber-700/5 border-amber-500/30",
+    ringLight: "from-amber-100 to-amber-50 border-amber-300",
+  },
+  {
+    email: "f.alrashidi@aha.gov.ae",
+    password: "Reviewer@2026",
+    role: "reviewer",
+    displayName: "Fatima Al Rashidi",
+    displayNameAr: "فاطمة الراشدي",
+    title: "Application Reviewer",
+    titleAr: "مراجع الطلبات",
+    initial: "F",
+    ringDark: "from-teal-700/20 to-teal-900/5 border-teal-600/30",
+    ringLight: "from-teal-50 to-emerald-50 border-teal-300",
+  },
+  {
+    email: "a.almazrouei@aha.gov.ae",
+    password: "Jury@2026",
+    role: "jury",
+    displayName: "Prof. Ahmad Al Mazrouei",
+    displayNameAr: "أ.د. أحمد المزروعي",
+    title: "Jury Member",
+    titleAr: "عضو لجنة التحكيم",
+    initial: "A",
+    ringDark: "from-indigo-600/20 to-indigo-900/5 border-indigo-500/30",
+    ringLight: "from-indigo-50 to-blue-50 border-indigo-300",
+    juryId: 1,
+  },
+  {
+    email: "n.alkaabi@aha.gov.ae",
+    password: "Admin@2026",
+    role: "sysadmin",
+    displayName: "Nasser Al Kaabi",
+    displayNameAr: "ناصر الكعبي",
+    title: "System Administrator",
+    titleAr: "مسؤول النظام",
+    initial: "N",
+    ringDark: "from-rose-600/15 to-rose-900/5 border-rose-500/25",
+    ringLight: "from-rose-50 to-pink-50 border-rose-200",
+  },
+  {
+    email: "audit@aha.gov.ae",
+    password: "Audit@2026",
+    role: "audit",
+    displayName: "Audit Office",
+    displayNameAr: "مكتب التدقيق",
+    title: "Audit User · Read Only",
+    titleAr: "مستخدم التدقيق · للقراءة فقط",
+    initial: "AU",
+    ringDark: "from-slate-500/15 to-slate-800/5 border-slate-400/20",
+    ringLight: "from-slate-100 to-slate-50 border-slate-300",
+  },
 ];
 
 export default function LoginPage() {
   const { t, lang } = useLanguage();
   const { isDark } = useTheme();
   const [, navigate] = useLocation();
-  const login = useLogin();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
 
-  const creds = isDark ? demoCredentials : demoCLight;
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    try {
-      const result = await login.mutateAsync({ email, password });
-      if (result?.user) {
-        setAuthUser(result.user as any, result.token || "");
-        navigate("/dashboard");
+    setLoading(true);
+
+    setTimeout(() => {
+      const found = accounts.find(
+        (a) => a.email.toLowerCase() === email.trim().toLowerCase() && a.password === password
+      );
+      if (!found) {
+        setLoading(false);
+        setError(lang === "ar" ? "بيانات الاعتماد غير صحيحة" : "Incorrect email or password");
+        return;
       }
-    } catch {
-      const found = creds.find((c) => c.email === email && c.password === password);
-      if (found) {
-        const fakeUser = {
-          id: 1,
-          name: found.role === "Administrator" ? "Dr. Sultan Al Mansoori" : found.role === "App Reviewer" ? "Fatima Al Rashidi" : "Prof. Ahmad Al Mazrouei",
-          nameAr: "",
-          email,
-          role: (found.role === "Administrator" ? "admin" : found.role === "App Reviewer" ? "reviewer" : "jury") as any,
-          status: "active",
-          createdAt: new Date().toISOString(),
-        };
-        setAuthUser(fakeUser, btoa(email));
-        navigate("/dashboard");
-      } else {
-        setError("Invalid email or password");
-      }
-    }
+      const user: AuthUser = {
+        id: Date.now(),
+        name: found.displayName,
+        nameAr: found.displayNameAr,
+        email: found.email,
+        role: found.role,
+        status: "active",
+        createdAt: new Date().toISOString(),
+        juryId: found.juryId,
+      };
+      setAuthUser(user, btoa(found.email + ":" + Date.now()));
+      navigate("/dashboard");
+    }, 600);
+  };
+
+  const selectAccount = (acc: AccountProfile) => {
+    setEmail(acc.email);
+    setPassword(acc.password);
+    setSelectedRole(acc.role);
+    setError("");
   };
 
   return (
     <div className="min-h-screen bg-background flex overflow-hidden">
-      {/* ===== LEFT PANEL — Decorative ===== */}
+      {/* ===== LEFT PANEL — Brand & decoration ===== */}
       <div className="hidden lg:flex w-1/2 relative items-center justify-center overflow-hidden">
-        {/* Background */}
         {isDark ? (
           <div className="absolute inset-0 bg-gradient-to-br from-[#060d1f] via-[#0a1628] to-[#061810]" />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-[#f5edd4] via-[#eedfc0] to-[#e8d5a8]" />
         )}
 
-        {/* Radial glow orbs */}
         <motion.div
           className="absolute w-[500px] h-[500px] rounded-full pointer-events-none"
           style={{
@@ -83,29 +152,9 @@ export default function LoginPage() {
           animate={{ scale: [1, 1.2, 1], opacity: [0.6, 1, 0.6] }}
           transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
         />
-        <motion.div
-          className="absolute top-1/4 right-1/4 w-64 h-64 rounded-full pointer-events-none"
-          style={{
-            background: isDark
-              ? "radial-gradient(circle, rgba(26,122,107,0.15) 0%, transparent 70%)"
-              : "radial-gradient(circle, rgba(26,122,107,0.1) 0%, transparent 70%)",
-          }}
-          animate={{ scale: [1.2, 1, 1.2], opacity: [0.5, 0.2, 0.5] }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-        />
-
-        {/* Arabic pattern */}
         <div className={`absolute inset-0 arabic-pattern ${isDark ? "opacity-25" : "opacity-15"}`} />
+        <FloatingMusicNotes count={12} rings equalizer goldColor={isDark ? "#C8A96E" : "#A87828"} />
 
-        {/* FLOATING MUSIC NOTES */}
-        <FloatingMusicNotes
-          count={12}
-          rings
-          equalizer
-          goldColor={isDark ? "#C8A96E" : "#A87828"}
-        />
-
-        {/* Content */}
         <div className="relative z-10 text-center px-8 max-w-sm">
           <motion.div
             initial={{ scale: 0, rotate: -20 }}
@@ -129,11 +178,16 @@ export default function LoginPage() {
             >
               هيئة أبوظبي للتراث
             </p>
-            <h1 className="text-3xl font-display font-bold text-foreground mb-2">{t("loginTitle")}</h1>
-            <p className="text-foreground/50 text-sm">{t("loginSubtitle")}</p>
+            <h1 className="text-3xl font-display font-bold text-foreground mb-2">
+              {lang === "ar" ? "بوابة الإدارة" : "Administration Portal"}
+            </h1>
+            <p className="text-foreground/50 text-sm">
+              {lang === "ar"
+                ? "خدمة تقييم شعراء الوطن"
+                : "National Poets Evaluation Service"}
+            </p>
           </motion.div>
 
-          {/* Decorative poem quote */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -141,7 +195,11 @@ export default function LoginPage() {
             className="mt-8 p-5 glass-panel rounded-2xl border border-gold/15 text-right"
             dir="rtl"
           >
-            <svg className={`w-5 h-5 mb-3 ${isDark ? "text-gold/40" : "text-[#8B5E0A]/40"}`} fill="currentColor" viewBox="0 0 24 24">
+            <svg
+              className={`w-5 h-5 mb-3 ${isDark ? "text-gold/40" : "text-[#8B5E0A]/40"}`}
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
             </svg>
             <p className={`font-arabic text-lg leading-loose ${isDark ? "text-foreground/80" : "text-foreground/70"}`}>
@@ -150,42 +208,17 @@ export default function LoginPage() {
             </p>
             <p className="text-foreground/30 text-xs mt-3">— محمد المنصوري</p>
           </motion.div>
-
-          {/* Animated equalizer visual at bottom */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.8 }}
-            className="mt-8 flex items-end justify-center gap-1.5"
-          >
-            {[20, 35, 28, 45, 32, 50, 25, 40, 30, 38, 22, 44].map((h, i) => (
-              <motion.div
-                key={i}
-                className="w-1.5 rounded-full gold-gradient"
-                animate={{ height: [h * 0.4, h, h * 0.5, h * 0.8, h * 0.3, h] }}
-                transition={{
-                  duration: 1.1 + i * 0.08,
-                  delay: i * 0.05,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  repeatType: "mirror",
-                }}
-                style={{ height: h }}
-              />
-            ))}
-          </motion.div>
         </div>
       </div>
 
-      {/* ===== RIGHT PANEL — Form ===== */}
+      {/* ===== RIGHT PANEL — Sign-in form ===== */}
       <div className="w-full lg:w-1/2 flex flex-col bg-background">
-        {/* Top nav */}
         <div className="flex items-center justify-between p-6 border-b border-border/30">
           <Link href="/" className="flex items-center gap-2 text-foreground/50 hover:text-foreground text-sm transition-colors">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            Back to site
+            {lang === "ar" ? "عودة للرئيسية" : "Back to site"}
           </Link>
           <div className="flex items-center gap-2">
             <ThemeToggle />
@@ -193,46 +226,62 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div className="flex-1 flex items-center justify-center px-6 py-8">
+        <div className="flex-1 flex items-center justify-center px-6 py-8 overflow-y-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="w-full max-w-md"
           >
-            <div className="mb-8">
-              <h2 className="text-3xl font-display font-bold mb-1">{t("loginTitle")}</h2>
-              <p className="text-foreground/50 text-sm">{t("loginSubtitle")}</p>
+            <div className="mb-6">
+              <h2 className="text-3xl font-display font-bold mb-1">
+                {lang === "ar" ? "تسجيل الدخول" : "Sign in to your account"}
+              </h2>
+              <p className="text-foreground/50 text-sm">
+                {lang === "ar"
+                  ? "اختر دورك للمتابعة إلى لوحة التحكم"
+                  : "Select your role or enter your credentials below"}
+              </p>
             </div>
 
-            {/* Demo credentials */}
-            <div className="mb-6">
-              <p className="text-xs text-foreground/40 mb-3 uppercase tracking-wider font-semibold">{t("demoCredentials")}</p>
-              <div className="space-y-2">
-                {creds.map((cred) => (
-                  <motion.button
-                    key={cred.email}
-                    whileHover={{ scale: 1.01, x: 2 }}
-                    whileTap={{ scale: 0.99 }}
-                    onClick={() => { setEmail(cred.email); setPassword(cred.password); }}
-                    className={`w-full flex items-center justify-between p-3 rounded-xl bg-gradient-to-r ${cred.color} border hover:border-gold/40 transition-all group text-left`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-full gold-gradient flex items-center justify-center text-navy text-xs font-bold">
-                        {cred.role.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{lang === "ar" ? cred.roleAr : cred.role}</p>
-                        <p className="text-xs text-foreground/40">{cred.email}</p>
-                      </div>
-                    </div>
-                    <motion.span
-                      className="text-xs text-gold/50 group-hover:text-gold transition-colors"
-                      whileHover={{ x: 2 }}
+            {/* Role accounts */}
+            <div className="mb-5">
+              <p className="text-[11px] text-foreground/40 mb-2.5 uppercase tracking-wider font-semibold">
+                {lang === "ar" ? "الحسابات النشطة" : "Active accounts"}
+              </p>
+              <div className="space-y-1.5">
+                {accounts.map((acc) => {
+                  const tone = isDark ? acc.ringDark : acc.ringLight;
+                  const active = selectedRole === acc.role;
+                  return (
+                    <motion.button
+                      key={acc.email}
+                      type="button"
+                      whileHover={{ scale: 1.005, x: 1 }}
+                      whileTap={{ scale: 0.997 }}
+                      onClick={() => selectAccount(acc)}
+                      className={`w-full flex items-center justify-between p-3 rounded-xl bg-gradient-to-r ${tone} border transition-all group text-left ${
+                        active ? "ring-2 ring-gold/50" : ""
+                      }`}
                     >
-                      Use →
-                    </motion.span>
-                  </motion.button>
-                ))}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-full gold-gradient flex items-center justify-center text-navy text-sm font-bold flex-shrink-0">
+                          {acc.initial}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-foreground truncate">
+                            {lang === "ar" ? acc.displayNameAr : acc.displayName}
+                          </p>
+                          <p className="text-xs text-foreground/50 truncate">
+                            {lang === "ar" ? acc.titleAr : acc.title}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] text-gold/60 group-hover:text-gold transition-colors flex-shrink-0 ml-2">
+                        {active ? "✓" : (lang === "ar" ? "اختر" : "Select")}
+                      </span>
+                    </motion.button>
+                  );
+                })}
               </div>
             </div>
 
@@ -241,13 +290,17 @@ export default function LoginPage() {
                 <div className="w-full border-t border-border/50" />
               </div>
               <div className="relative flex justify-center text-xs">
-                <span className="bg-background px-3 text-foreground/30">or enter manually</span>
+                <span className="bg-background px-3 text-foreground/30">
+                  {lang === "ar" ? "أو سجّل الدخول يدوياً" : "or sign in manually"}
+                </span>
               </div>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs text-foreground/50 mb-1.5 font-medium">{t("emailLabel")}</label>
+                <label className="block text-xs text-foreground/60 mb-1.5 font-medium">
+                  {lang === "ar" ? "البريد الإلكتروني" : "Email Address"}
+                </label>
                 <input
                   type="email"
                   value={email}
@@ -255,11 +308,13 @@ export default function LoginPage() {
                   required
                   autoComplete="email"
                   className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gold/50 focus:ring-2 focus:ring-gold/10 transition-all"
-                  placeholder="name@aha.ae"
+                  placeholder="name@aha.gov.ae"
                 />
               </div>
               <div>
-                <label className="block text-xs text-foreground/50 mb-1.5 font-medium">{t("passwordLabel")}</label>
+                <label className="block text-xs text-foreground/60 mb-1.5 font-medium">
+                  {lang === "ar" ? "كلمة المرور" : "Password"}
+                </label>
                 <input
                   type="password"
                   value={password}
@@ -289,22 +344,28 @@ export default function LoginPage() {
 
               <motion.button
                 type="submit"
-                disabled={login.isPending}
+                disabled={loading}
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.99 }}
-                className="w-full py-3.5 rounded-xl gold-gradient text-navy font-bold text-base disabled:opacity-50 transition-all shadow-lg shadow-gold/20 mt-2"
+                className="w-full py-3.5 rounded-xl gold-gradient text-navy font-bold text-base disabled:opacity-50 transition-all shadow-lg shadow-gold/20 mt-1"
               >
-                {login.isPending ? (
+                {loading ? (
                   <span className="flex items-center justify-center gap-2">
                     <motion.span
                       animate={{ rotate: 360 }}
                       transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                       className="w-4 h-4 border-2 border-navy/30 border-t-navy rounded-full inline-block"
                     />
-                    {t("signingIn")}
+                    {lang === "ar" ? "جاري التحقق…" : "Verifying…"}
                   </span>
-                ) : t("loginButton")}
+                ) : (lang === "ar" ? "تسجيل الدخول" : "Sign In")}
               </motion.button>
+
+              <p className="text-center text-[11px] text-foreground/30 mt-3">
+                {lang === "ar"
+                  ? "نظام تقييم الشعراء المعتمد من هيئة أبوظبي للتراث"
+                  : "Authorized system of Abu Dhabi Heritage Authority"}
+              </p>
             </form>
           </motion.div>
         </div>

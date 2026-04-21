@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { DashboardLayout } from "@/components/DashboardLayout";
 
 type Role = { id: number; name: string; permissions: string[] };
@@ -34,11 +34,13 @@ const initialRoles: Role[] = [
 export default function AdminRolesPermissionsPage() {
   const [roles, setRoles] = useState<Role[]>(initialRoles);
   const [newRoleName, setNewRoleName] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
 
   function addRole() {
     if (!newRoleName.trim()) return;
     setRoles((prev) => [...prev, { id: Date.now(), name: newRoleName.trim(), permissions: [] }]);
     setNewRoleName("");
+    setCreateOpen(false);
   }
 
   function togglePermission(roleId: number, permission: string) {
@@ -58,27 +60,17 @@ export default function AdminRolesPermissionsPage() {
 
   return (
     <DashboardLayout>
-      <div className="mb-6">
-        <h1 className="text-2xl font-display font-bold">Roles & Permissions</h1>
-        <p className="text-foreground/40 text-sm mt-0.5">
-          Configure roles and permission toggles using the exact 16 permissions from the BRD matrix.
-        </p>
-      </div>
-
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-panel rounded-xl border border-gold/10 p-4 mb-4">
-        <h3 className="text-sm font-semibold mb-3">Create Role</h3>
-        <div className="flex gap-3">
-          <input
-            value={newRoleName}
-            onChange={(e) => setNewRoleName(e.target.value)}
-            placeholder="Role name"
-            className="flex-1 bg-background/50 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gold/50"
-          />
-          <button onClick={addRole} className="px-4 py-2 rounded-lg gold-gradient text-navy text-sm font-semibold">
-            + Create Role
-          </button>
+      <div className="mb-6 flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-display font-bold">Roles & Permissions</h1>
+          <p className="text-foreground/40 text-sm mt-0.5">
+            Configure roles and permission toggles using the exact 16 permissions from the BRD matrix.
+          </p>
         </div>
-      </motion.div>
+        <button onClick={() => setCreateOpen(true)} className="px-4 py-2 rounded-lg gold-gradient text-navy text-sm font-semibold">
+          + Create Role
+        </button>
+      </div>
 
       <div className="space-y-4">
         {roles.map((role) => (
@@ -103,6 +95,43 @@ export default function AdminRolesPermissionsPage() {
           </motion.div>
         ))}
       </div>
+
+      <AnimatePresence>
+        {createOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setCreateOpen(false)}
+            className="fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 16, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 16, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="glass-panel rounded-2xl border border-gold/30 w-full max-w-lg bg-card p-6"
+            >
+              <h3 className="text-lg font-display font-bold mb-1">Create Role</h3>
+              <p className="text-sm text-foreground/50 mb-5">Add a role without technical dependency.</p>
+              <input
+                value={newRoleName}
+                onChange={(e) => setNewRoleName(e.target.value)}
+                placeholder="Role name"
+                className="w-full bg-background/50 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gold/50"
+              />
+              <div className="flex gap-3 mt-5">
+                <button onClick={() => setCreateOpen(false)} className="flex-1 py-2.5 rounded-lg border border-border text-foreground/60 hover:border-gold/20">
+                  Cancel
+                </button>
+                <button onClick={addRole} className="flex-1 py-2.5 rounded-lg gold-gradient text-navy font-semibold">
+                  Create Role
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </DashboardLayout>
   );
 }

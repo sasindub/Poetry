@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 
@@ -21,6 +21,8 @@ const initialJury: JuryMember[] = [
 
 export default function JuryPage() {
   const [jury, setJury] = useState<JuryMember[]>(initialJury);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [form, setForm] = useState({ name: "", email: "", availability: "available" as JuryMember["availability"] });
 
   function toggleMember(id: number) {
     setJury((prev) =>
@@ -32,6 +34,23 @@ export default function JuryPage() {
     );
   }
 
+  function addJuryMember() {
+    if (!form.name.trim() || !form.email.trim()) return;
+    setJury((prev) => [
+      {
+        id: Date.now(),
+        name: form.name.trim(),
+        email: form.email.trim(),
+        availability: form.availability,
+        responseRate: 0,
+        active: form.availability !== "inactive",
+      },
+      ...prev,
+    ]);
+    setForm({ name: "", email: "", availability: "available" });
+    setCreateOpen(false);
+  }
+
   return (
     <DashboardLayout>
       <div className="mb-6 flex items-center justify-between">
@@ -41,7 +60,7 @@ export default function JuryPage() {
             Manage pre-registered jury members, availability, and response rate.
           </p>
         </div>
-        <button className="px-4 py-2 rounded-lg border border-gold/30 text-gold hover:bg-gold/10 text-sm font-semibold">
+        <button onClick={() => setCreateOpen(true)} className="px-4 py-2 rounded-lg border border-gold/30 text-gold hover:bg-gold/10 text-sm font-semibold">
           + Add jury member
         </button>
       </div>
@@ -87,6 +106,60 @@ export default function JuryPage() {
           </tbody>
         </table>
       </motion.div>
+
+      <AnimatePresence>
+        {createOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setCreateOpen(false)}
+            className="fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 16, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 16, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="glass-panel rounded-2xl border border-gold/30 w-full max-w-xl bg-card p-6"
+            >
+              <h3 className="text-lg font-display font-bold mb-1">Add Jury Member</h3>
+              <p className="text-sm text-foreground/50 mb-5">Register a pre-approved jury member in the pool.</p>
+              <div className="space-y-3">
+                <input
+                  value={form.name}
+                  onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                  placeholder="Full name"
+                  className="w-full bg-background/50 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gold/50"
+                />
+                <input
+                  value={form.email}
+                  onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
+                  placeholder="Email"
+                  className="w-full bg-background/50 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gold/50"
+                />
+                <select
+                  value={form.availability}
+                  onChange={(e) => setForm((p) => ({ ...p, availability: e.target.value as JuryMember["availability"] }))}
+                  className="w-full bg-background/50 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gold/50"
+                >
+                  <option value="available">Available</option>
+                  <option value="busy">Busy</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+              <div className="flex gap-3 mt-5">
+                <button onClick={() => setCreateOpen(false)} className="flex-1 py-2.5 rounded-lg border border-border text-foreground/60 hover:border-gold/20">
+                  Cancel
+                </button>
+                <button onClick={addJuryMember} className="flex-1 py-2.5 rounded-lg gold-gradient text-navy font-semibold">
+                  Add Member
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </DashboardLayout>
   );
 }

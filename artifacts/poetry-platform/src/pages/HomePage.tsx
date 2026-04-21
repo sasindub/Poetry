@@ -106,7 +106,7 @@ export default function HomePage() {
           <FloatingMusicNotes
             count={14}
             rings
-            equalizer
+            equalizer={false}
             goldColor={isDark ? "#C8A96E" : "#B8820C"}
           />
         </div>

@@ -8,36 +8,37 @@ export default function SubmitPage() {
   const { t, isRtl } = useLanguage();
   const [success, setSuccess] = useState(false);
   const [refNum, setRefNum] = useState("");
+  const [savedDraft, setSavedDraft] = useState(false);
   const createSubmission = useCreateSubmission();
 
   const [form, setForm] = useState({
     poetName: "",
-    poetNameAr: "",
     poetEmail: "",
     poetPhone: "",
     poetNationality: "",
+    requesterName: "",
+    requesterRelationship: "",
+    sourceChannel: "",
     poemTitle: "",
-    poemTitleAr: "",
+    openingLine: "",
     poemContent: "",
-    poemType: "" as "nabati" | "classical" | "modern" | "",
+    poemType: "" as "nabati" | "standard" | "",
+    attachmentName: "",
   });
 
   const handleChange = (key: string, value: string) => {
     setForm((f) => ({ ...f, [key]: value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitForm = async () => {
     if (!form.poemType) return;
     try {
       const result = await createSubmission.mutateAsync({
         poetName: form.poetName,
-        poetNameAr: form.poetNameAr,
         poetEmail: form.poetEmail,
         poetPhone: form.poetPhone,
         poetNationality: form.poetNationality,
         poemTitle: form.poemTitle,
-        poemTitleAr: form.poemTitleAr,
         poemContent: form.poemContent,
         poemType: form.poemType,
       });
@@ -47,6 +48,17 @@ export default function SubmitPage() {
       setRefNum(`AHA-${Date.now()}`);
       setSuccess(true);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitForm();
+  };
+
+  const handleSaveDraft = () => {
+    localStorage.setItem("poem_intake_draft", JSON.stringify(form));
+    setSavedDraft(true);
+    setTimeout(() => setSavedDraft(false), 2500);
   };
 
   if (success) {
@@ -137,7 +149,6 @@ export default function SubmitPage() {
                 <div className="grid sm:grid-cols-2 gap-4">
                   {[
                     { key: "poetName", label: t("poetName"), type: "text", required: true },
-                    { key: "poetNameAr", label: t("poetNameAr"), type: "text", dir: "rtl" },
                     { key: "poetEmail", label: t("poetEmail"), type: "email", required: true },
                     { key: "poetPhone", label: t("poetPhone"), type: "tel" },
                     { key: "poetNationality", label: t("poetNationality"), type: "text" },
@@ -162,6 +173,34 @@ export default function SubmitPage() {
 
               <div className="border-t border-border/50" />
 
+              {/* Requester info */}
+              <div>
+                <h3 className="text-sm font-semibold text-gold/70 tracking-wider uppercase mb-4">Requester Information</h3>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-foreground/50 mb-1.5">Requester Name <span className="text-gold">*</span></label>
+                    <input
+                      type="text"
+                      value={form.requesterName}
+                      onChange={(e) => handleChange("requesterName", e.target.value)}
+                      required
+                      className="w-full bg-background/50 border border-border rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-foreground/50 mb-1.5">Relationship to Poet</label>
+                    <input
+                      type="text"
+                      value={form.requesterRelationship}
+                      onChange={(e) => handleChange("requesterRelationship", e.target.value)}
+                      className="w-full bg-background/50 border border-border rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20 transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-border/50" />
+
               {/* Poem info */}
               <div>
                 <h3 className="text-sm font-semibold text-gold/70 tracking-wider uppercase mb-4">Poem Details</h3>
@@ -176,22 +215,13 @@ export default function SubmitPage() {
                       className="w-full bg-background/50 border border-border rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20 transition-all"
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs text-foreground/50 mb-1.5">{t("poemTitleAr")}</label>
-                    <input
-                      type="text"
-                      dir="rtl"
-                      value={form.poemTitleAr}
-                      onChange={(e) => handleChange("poemTitleAr", e.target.value)}
-                      className="w-full bg-background/50 border border-border rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20 transition-all"
-                    />
-                  </div>
+                  <div />
                 </div>
 
                 <div className="mt-4">
                   <label className="block text-xs text-foreground/50 mb-1.5">{t("poemType")} <span className="text-gold">*</span></label>
-                  <div className="grid grid-cols-3 gap-3">
-                    {(["nabati", "classical", "modern"] as const).map((type) => (
+                  <div className="grid grid-cols-2 gap-3">
+                    {(["nabati", "standard"] as const).map((type) => (
                       <button
                         key={type}
                         type="button"
@@ -202,10 +232,20 @@ export default function SubmitPage() {
                             : "border-border text-foreground/50 hover:border-gold/30 hover:text-foreground"
                         }`}
                       >
-                        {t(type)}
+                        {type === "nabati" ? "Nabati" : "Standard"}
                       </button>
                     ))}
                   </div>
+                </div>
+
+                <div className="mt-4">
+                  <label className="block text-xs text-foreground/50 mb-1.5">Opening Line</label>
+                  <input
+                    type="text"
+                    value={form.openingLine}
+                    onChange={(e) => handleChange("openingLine", e.target.value)}
+                    className="w-full bg-background/50 border border-border rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20 transition-all"
+                  />
                 </div>
 
                 <div className="mt-4">
@@ -224,15 +264,69 @@ export default function SubmitPage() {
                 </div>
               </div>
 
-              <motion.button
-                type="submit"
-                disabled={createSubmission.isPending || !form.poemType}
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
-                className="w-full py-4 rounded-xl gold-gradient text-navy font-bold text-base disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-gold/20"
-              >
-                {createSubmission.isPending ? t("submitting") : t("submitButton")}
-              </motion.button>
+              <div className="border-t border-border/50" />
+
+              {/* Metadata */}
+              <div>
+                <h3 className="text-sm font-semibold text-gold/70 tracking-wider uppercase mb-4">Metadata</h3>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-foreground/50 mb-1.5">Source Channel</label>
+                    <input
+                      type="text"
+                      value={form.sourceChannel}
+                      onChange={(e) => handleChange("sourceChannel", e.target.value)}
+                      className="w-full bg-background/50 border border-border rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20 transition-all"
+                      placeholder="Website / Email / Referral"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-foreground/50 mb-1.5">Attachment (simulated)</label>
+                    <input
+                      type="file"
+                      onChange={(e) => handleChange("attachmentName", e.target.files?.[0]?.name || "")}
+                      className="w-full bg-background/50 border border-border rounded-lg px-4 py-2.5 text-sm text-foreground file:mr-3 file:px-3 file:py-1 file:rounded-md file:border-0 file:bg-gold/15 file:text-gold"
+                    />
+                    {form.attachmentName && (
+                      <p className="text-xs text-foreground/50 mt-1">Selected: {form.attachmentName}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <AnimatePresence>
+                {savedDraft && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="rounded-lg border border-gold/30 bg-gold/10 px-4 py-2 text-sm text-gold"
+                  >
+                    Draft saved successfully.
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <div className="grid sm:grid-cols-2 gap-3">
+                <motion.button
+                  type="button"
+                  onClick={handleSaveDraft}
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                  className="w-full py-3 rounded-xl border border-gold/30 text-gold font-semibold text-sm hover:bg-gold/10 transition-all"
+                >
+                  Save as Draft
+                </motion.button>
+                <motion.button
+                  type="submit"
+                  disabled={createSubmission.isPending || !form.poemType}
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                  className="w-full py-3 rounded-xl gold-gradient text-navy font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-gold/20"
+                >
+                  {createSubmission.isPending ? t("submitting") : "Save"}
+                </motion.button>
+              </div>
             </form>
           </motion.div>
         </div>

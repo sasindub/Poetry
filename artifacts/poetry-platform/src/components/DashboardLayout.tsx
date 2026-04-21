@@ -6,7 +6,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { LanguageToggle } from "./LanguageToggle";
 import { ThemeToggle } from "./ThemeToggle";
 import { AccessibilityMenu } from "./AccessibilityMenu";
-import { getAuthUser, clearAuth } from "@/lib/auth";
+import { getAuthUser, clearAuth, roleLabel } from "@/lib/auth";
 import { canAccessJuryPanel, canAccessUsers } from "@/lib/permissions";
 
 interface NavItem {
@@ -26,6 +26,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   const [location, navigate] = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const user = getAuthUser();
   const isSystemAdmin =
@@ -147,31 +148,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         })}
       </nav>
 
-      {/* User profile */}
-      <div className={`px-3 py-3 border-t border-gold/10 ${sidebarCollapsed ? "text-center" : ""}`}>
-        <div className={`flex items-center gap-3 ${sidebarCollapsed ? "justify-center" : ""}`}>
-          <div className="w-8 h-8 rounded-full gold-gradient flex items-center justify-center flex-shrink-0 text-navy font-bold text-sm">
-            {user?.name?.charAt(0) || "U"}
-          </div>
-          {!sidebarCollapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{user?.name}</p>
-              <p className="text-xs text-foreground/50 capitalize">{user?.role}</p>
-            </div>
-          )}
-        </div>
-        {!sidebarCollapsed && (
-          <button
-            onClick={handleLogout}
-            className="mt-2 w-full text-left px-3 py-2 text-xs text-foreground/50 hover:text-destructive flex items-center gap-2 rounded-md hover:bg-destructive/10 transition-all"
-          >
-            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            {t("logout")}
-          </button>
-        )}
-      </div>
+      <div className="px-2 py-2 border-t border-gold/10" />
     </div>
   );
 
@@ -231,8 +208,37 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
             <ThemeToggle />
             <AccessibilityMenu />
             <LanguageToggle />
-            <div className="w-8 h-8 rounded-full gold-gradient flex items-center justify-center text-navy font-bold text-sm">
-              {user?.name?.charAt(0) || "U"}
+            <div className="relative">
+              <button
+                onClick={() => setProfileOpen((v) => !v)}
+                className="w-8 h-8 rounded-full gold-gradient flex items-center justify-center text-navy font-bold text-sm"
+              >
+                {user?.name?.charAt(0) || "U"}
+              </button>
+              <AnimatePresence>
+                {profileOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    className="absolute right-0 mt-2 w-56 rounded-xl glass-panel border border-gold/20 shadow-2xl shadow-black/30 z-[140] p-3"
+                  >
+                    <div className="pb-2 border-b border-border/50">
+                      <p className="text-sm font-medium truncate">{user?.name ?? "User"}</p>
+                      <p className="text-xs text-foreground/50">{user?.role ? roleLabel(user.role) : "Role"}</p>
+                    </div>
+                    <button
+                      onClick={handleLogout}
+                      className="mt-2 w-full text-left px-2.5 py-2 text-xs text-foreground/60 hover:text-destructive hover:bg-destructive/10 rounded-md transition-all flex items-center gap-2"
+                    >
+                      <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                      {t("logout")}
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </header>

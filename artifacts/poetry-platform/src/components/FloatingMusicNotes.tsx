@@ -49,17 +49,17 @@ function FloatingNote({ cfg, goldColor }: { cfg: NoteConfig; goldColor: string }
       style={{ left: `${cfg.x}%`, top: cfg.startY }}
       initial={{ y: 0, opacity: 0, x: 0, rotate: cfg.rotate }}
       animate={{
-        y: [0, -120, -260, -420, -580, -760, -950],
-        opacity: [0, cfg.opacity, cfg.opacity, cfg.opacity * 0.75, cfg.opacity * 0.45, cfg.opacity * 0.15, 0],
-        x: [0, cfg.drift * 0.15, cfg.drift * 0.4, cfg.drift * 0.65, cfg.drift, cfg.drift * 1.1, cfg.drift * 0.9],
-        rotate: [cfg.rotate, cfg.rotate + 8, cfg.rotate - 5, cfg.rotate + 10, cfg.rotate - 3, cfg.rotate + 6, cfg.rotate],
-        scale: [cfg.scale * 0.5, cfg.scale, cfg.scale * 1.1, cfg.scale, cfg.scale * 0.85, cfg.scale * 0.6, 0.1],
+        y: [0, -90, -190, -300, -420, -560, -700],
+        opacity: [0, cfg.opacity * 0.8, cfg.opacity * 0.8, cfg.opacity * 0.65, cfg.opacity * 0.4, cfg.opacity * 0.15, 0],
+        x: [0, cfg.drift * 0.1, cfg.drift * 0.2, cfg.drift * 0.35, cfg.drift * 0.5, cfg.drift * 0.65, cfg.drift * 0.6],
+        rotate: [cfg.rotate, cfg.rotate + 3, cfg.rotate - 2, cfg.rotate + 4, cfg.rotate - 1, cfg.rotate + 2, cfg.rotate],
+        scale: [cfg.scale * 0.7, cfg.scale * 0.95, cfg.scale, cfg.scale * 0.95, cfg.scale * 0.85, cfg.scale * 0.7, cfg.scale * 0.4],
       }}
       transition={{
-        duration: cfg.duration,
+        duration: cfg.duration * 1.8,
         delay: cfg.delay,
         repeat: Infinity,
-        ease: [0.25, 0.46, 0.45, 0.94],
+        ease: "easeInOut",
         times: [0, 0.08, 0.25, 0.45, 0.65, 0.85, 1],
       }}
     >
@@ -95,7 +95,7 @@ function SoundRing({ left, top, delay, size, color }: { left: string; top: strin
         opacity: [0, 0.45, 0.18, 0],
       }}
       transition={{
-        duration: 3.8,
+        duration: 5.6,
         delay,
         repeat: Infinity,
         ease: "easeOut",
@@ -117,7 +117,7 @@ function BeatDot({ left, top, delay, color }: { left: string; top: string; delay
         boxShadow: [`0 0 0px ${color}`, `0 0 10px 2px ${color}`, `0 0 0px ${color}`],
       }}
       transition={{
-        duration: 1.6 + delay * 0.4,
+        duration: 2.6 + delay * 0.5,
         delay: delay * 0.25,
         repeat: Infinity,
         ease: "easeInOut",

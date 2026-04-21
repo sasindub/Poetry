@@ -120,6 +120,9 @@ const fallbackActivity = [
 export default function DashboardHome() {
   const { t } = useLanguage();
   const user = getAuthUser();
+  const isJury = user?.role === "jury";
+  const isReviewer = user?.role === "reviewer";
+  const useJuryStyleDashboard = isJury || isReviewer;
   const { data: stats } = useGetDashboardStats();
   const { data: activityData } = useGetRecentActivity({ limit: 8 });
   const { data: trendsData } = useGetSubmissionTrends();
@@ -127,6 +130,24 @@ export default function DashboardHome() {
   const s = stats || fallbackStats;
   const trends = trendsData?.trends || fallbackTrends;
   const activities = activityData?.activities || fallbackActivity;
+
+  const juryAssigned = [
+    { id: 1, referenceNumber: "AHA-2026-001", poemTitle: "Desert Song", assignedAt: "2026-01-20T08:00:00Z", deadlineAt: "2026-01-22T08:00:00Z", status: "pending" },
+    { id: 2, referenceNumber: "AHA-2026-002", poemTitle: "Voice of the Palm", assignedAt: "2026-01-30T09:00:00Z", deadlineAt: "2026-02-01T09:00:00Z", status: "pending" },
+    { id: 3, referenceNumber: "AHA-2026-003", poemTitle: "Pearl of the Gulf", assignedAt: "2026-02-08T12:00:00Z", deadlineAt: "2026-02-10T12:00:00Z", status: "pending" },
+    { id: 5, referenceNumber: "AHA-2026-005", poemTitle: "The Brave Falcon", assignedAt: "2026-01-10T11:00:00Z", deadlineAt: "2026-01-12T11:00:00Z", status: "submitted" },
+    { id: 9, referenceNumber: "AHA-2026-009", poemTitle: "The Brave Camel", assignedAt: "2026-02-05T10:00:00Z", deadlineAt: "2026-02-07T10:00:00Z", status: "submitted" },
+    { id: 12, referenceNumber: "AHA-2026-012", poemTitle: "The Golden Dunes", assignedAt: "2026-01-15T14:00:00Z", deadlineAt: "2026-01-17T14:00:00Z", status: "submitted" },
+    { id: 15, referenceNumber: "AHA-2026-015", poemTitle: "Spirit of the Nation", assignedAt: "2026-01-22T16:00:00Z", deadlineAt: "2026-01-24T16:00:00Z", status: "submitted" },
+    { id: 10, referenceNumber: "AHA-2026-010", poemTitle: "Whisper of the Wind", assignedAt: "2026-02-25T09:00:00Z", deadlineAt: "2026-02-27T09:00:00Z", status: "expired" },
+  ];
+
+  const juryStatCards = [
+    { label: "Total Submissions", value: juryAssigned.length, icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> },
+    { label: "Pending Reviews", value: juryAssigned.filter((s) => s.status === "pending").length, icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
+    { label: "Approved", value: juryAssigned.filter((s) => s.status === "submitted").length, icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/></svg> },
+    { label: "Rejected", value: juryAssigned.filter((s) => s.status === "expired").length, icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg> },
+  ];
 
   const statCards = [
     { label: t("totalSubmissions"), value: s.totalSubmissions, icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>, sub: `+${s.submissionsThisMonth} this month` },
@@ -155,13 +176,70 @@ export default function DashboardHome() {
         animate="visible"
         className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
       >
-        {statCards.map((card, i) => (
+        {(useJuryStyleDashboard ? juryStatCards : statCards).map((card, i) => (
           <motion.div key={i} variants={itemV}>
             <StatCard {...card} />
           </motion.div>
         ))}
       </motion.div>
 
+      {useJuryStyleDashboard ? (
+        <div className="grid lg:grid-cols-5 gap-4 mb-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="lg:col-span-2 glass-panel rounded-xl p-5 border border-gold/10"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold">Latest 10 Submissions</h3>
+              <Link href="/dashboard/submissions" className="text-xs text-gold hover:underline">
+                Open submissions
+              </Link>
+            </div>
+            <div className="space-y-1">
+              {juryAssigned.slice(0, 10).map((row, i) => (
+                <Link key={row.id} href={`/dashboard/submissions?open=${row.id}`}>
+                  <div className="px-3 py-2 rounded-lg hover:bg-white/5 transition-colors flex items-center gap-3 cursor-pointer">
+                    <span className="w-6 text-xs text-gold font-semibold">{i + 1}.</span>
+                    <span className="text-sm">{row.poemTitle}</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+            className="lg:col-span-3 glass-panel rounded-xl p-5 border border-gold/10"
+          >
+            <h3 className="text-sm font-semibold mb-4">Submission Trends</h3>
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={isReviewer ? trends : fallbackTrends}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(200,169,110,0.08)" />
+                <XAxis dataKey="month" tick={{ fill: "rgba(200,169,110,0.5)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: "rgba(200,169,110,0.5)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ background: "rgba(10,22,40,0.95)", border: "1px solid rgba(200,169,110,0.2)", borderRadius: 8, fontSize: 12 }} />
+                <Line type="monotone" dataKey="submissions" stroke="#C8A96E" strokeWidth={2} dot={false} />
+                {isReviewer && <Line type="monotone" dataKey="approved" stroke="#1A7A6B" strokeWidth={2} dot={false} />}
+                {isReviewer && <Line type="monotone" dataKey="rejected" stroke="#B85C5C" strokeWidth={2} dot={false} />}
+              </LineChart>
+            </ResponsiveContainer>
+            {isReviewer && (
+              <div className="flex gap-4 mt-3">
+                {[{ label: "Submissions", color: "#C8A96E" }, { label: "Approved", color: "#1A7A6B" }, { label: "Rejected", color: "#B85C5C" }].map((item) => (
+                  <div key={item.label} className="flex items-center gap-1.5 text-xs text-foreground/50">
+                    <div className="w-3 h-0.5 rounded" style={{ background: item.color }} />
+                    {item.label}
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        </div>
+      ) : (
+      <>
       {/* Charts row */}
       <div className="grid lg:grid-cols-3 gap-4 mb-6">
         {/* Trend chart */}
@@ -237,7 +315,11 @@ export default function DashboardHome() {
           </div>
         </motion.div>
       </div>
+      </>
+      )}
 
+      {!useJuryStyleDashboard && (
+      <>
       {/* Bottom row */}
       <div className="grid lg:grid-cols-2 gap-4">
         {/* Recent activity */}
@@ -306,6 +388,8 @@ export default function DashboardHome() {
           </div>
         </motion.div>
       </div>
+      </>
+      )}
     </DashboardLayout>
   );
 }

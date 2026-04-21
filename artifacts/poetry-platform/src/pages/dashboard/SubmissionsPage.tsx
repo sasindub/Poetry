@@ -1,11 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
 import { useLanguage } from "@/hooks/useLanguage";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { getAuthUser, canSeeIdentity, isReadOnly } from "@/lib/auth";
+import { useTheme } from "@/hooks/useTheme";
 
-const statusColors: Record<string, string> = {
+const statusColorsDark: Record<string, string> = {
   draft: "bg-slate-500/15 text-slate-400 border border-slate-500/20",
   received: "bg-cyan-500/15 text-cyan-400 border border-cyan-500/20",
   pending: "bg-amber-500/15 text-amber-400 border border-amber-500/20",
@@ -24,11 +25,29 @@ const statusColors: Record<string, string> = {
   returned_for_clarification: "bg-orange-600/15 text-orange-300 border border-orange-600/20",
   archived: "bg-gray-500/15 text-gray-400 border border-gray-500/20",
 };
+const statusColorsLight: Record<string, string> = {
+  draft: "bg-slate-200 text-slate-800 border border-slate-300",
+  received: "bg-cyan-100 text-cyan-800 border border-cyan-300",
+  pending: "bg-amber-100 text-amber-900 border border-amber-300",
+  under_review: "bg-blue-100 text-blue-900 border border-blue-300",
+  pending_information: "bg-orange-100 text-orange-900 border border-orange-300",
+  ready_for_jury: "bg-violet-100 text-violet-900 border border-violet-300",
+  sent_to_jury: "bg-purple-100 text-purple-900 border border-purple-300",
+  jury_assigned: "bg-purple-100 text-purple-900 border border-purple-300",
+  under_jury_review: "bg-fuchsia-100 text-fuchsia-900 border border-fuchsia-300",
+  evaluated: "bg-teal-100 text-teal-900 border border-teal-300",
+  jury_review_closed: "bg-teal-100 text-teal-900 border border-teal-300",
+  under_consolidation: "bg-emerald-100 text-emerald-900 border border-emerald-300",
+  sent_for_final_decision: "bg-amber-200 text-amber-900 border border-amber-400",
+  approved: "bg-green-100 text-green-900 border border-green-300",
+  rejected: "bg-red-100 text-red-900 border border-red-300",
+  returned_for_clarification: "bg-orange-200 text-orange-900 border border-orange-400",
+  archived: "bg-gray-100 text-gray-800 border border-gray-300",
+};
 
 const typeColors: Record<string, string> = {
   nabati: "text-amber-400",
-  classical: "text-teal-400",
-  modern: "text-indigo-400",
+  standard: "text-teal-400",
 };
 
 interface Submission {
@@ -48,6 +67,17 @@ interface Submission {
   meter?: string;
   rhyme?: string;
   verses?: number;
+}
+
+function normalizePoemType(type: string): "nabati" | "standard" {
+  return type.toLowerCase() === "nabati" ? "nabati" : "standard";
+}
+
+interface JuryAssignment {
+  submissionId: number;
+  assignedAt: string;
+  deadlineAt: string;
+  status: "pending" | "submitted" | "expired";
 }
 
 const fakeSubmissions: Submission[] = [
@@ -74,7 +104,18 @@ const allStatuses = [
   "approved", "rejected", "returned_for_clarification", "archived",
 ];
 
-const juryStatuses = ["all", "sent_to_jury", "under_jury_review", "approved", "rejected"];
+const juryAssignments: JuryAssignment[] = [
+  { submissionId: 1, assignedAt: "2026-01-20T08:00:00Z", deadlineAt: "2026-01-22T08:00:00Z", status: "pending" },
+  { submissionId: 2, assignedAt: "2026-01-30T09:00:00Z", deadlineAt: "2026-02-01T09:00:00Z", status: "pending" },
+  { submissionId: 3, assignedAt: "2026-02-08T12:00:00Z", deadlineAt: "2026-02-10T12:00:00Z", status: "pending" },
+  { submissionId: 5, assignedAt: "2026-01-10T11:00:00Z", deadlineAt: "2026-01-12T11:00:00Z", status: "submitted" },
+  { submissionId: 9, assignedAt: "2026-02-05T10:00:00Z", deadlineAt: "2026-02-07T10:00:00Z", status: "submitted" },
+  { submissionId: 12, assignedAt: "2026-01-15T14:00:00Z", deadlineAt: "2026-01-17T14:00:00Z", status: "submitted" },
+  { submissionId: 15, assignedAt: "2026-01-22T16:00:00Z", deadlineAt: "2026-01-24T16:00:00Z", status: "submitted" },
+  { submissionId: 10, assignedAt: "2026-02-25T09:00:00Z", deadlineAt: "2026-02-27T09:00:00Z", status: "expired" },
+];
+
+const juryStatuses = ["all", "pending", "submitted", "expired"];
 
 function statusLabel(status: string): string {
   return status.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
@@ -82,6 +123,7 @@ function statusLabel(status: string): string {
 
 export default function SubmissionsPage() {
   const { t, lang } = useLanguage();
+  const { isDark } = useTheme();
   const user = getAuthUser();
   const role = user?.role;
   const showIdentity = canSeeIdentity(role);
@@ -93,22 +135,23 @@ export default function SubmissionsPage() {
   const [activeSub, setActiveSub] = useState<Submission | null>(null);
   const [decisionType, setDecisionType] = useState<"accept" | "reject" | null>(null);
   const [comment, setComment] = useState("");
-  const [criteria, setCriteria] = useState({ language: 7, meter: 7, imagery: 7, originality: 7, impact: 7 });
   const [submitted, setSubmitted] = useState<Record<number, "accept" | "reject">>({});
   const [toast, setToast] = useState<string | null>(null);
+  const [selectedAssignmentStatus, setSelectedAssignmentStatus] = useState<"pending" | "submitted" | "expired" | null>(null);
+  const statusColors = isDark ? statusColorsDark : statusColorsLight;
 
   const statuses = isJury ? juryStatuses : allStatuses;
 
   const filtered = useMemo(() => {
     let list = fakeSubmissions;
     if (isJury) {
-      // Jury sees only items assigned to them or already evaluated by them
-      list = list.filter((s) =>
-        ["sent_to_jury", "under_jury_review", "approved", "rejected"].includes(s.status)
-      );
+      const assignedIds = new Set(juryAssignments.map((a) => a.submissionId));
+      list = list.filter((s) => assignedIds.has(s.id));
     }
     return list.filter((s) => {
-      const matchStatus = statusFilter === "all" || s.status === statusFilter;
+      const assignment = juryAssignments.find((a) => a.submissionId === s.id);
+      const juryStatus = assignment?.status;
+      const matchStatus = statusFilter === "all" || (isJury ? juryStatus === statusFilter : s.status === statusFilter);
       const searchableName = showIdentity ? s.poetName : "";
       const matchSearch =
         !search ||
@@ -119,16 +162,18 @@ export default function SubmissionsPage() {
     });
   }, [statusFilter, search, isJury, showIdentity]);
 
-  const openModal = (sub: Submission) => {
+  const openModal = (sub: Submission, assignmentStatus: "pending" | "submitted" | "expired" | null = null) => {
     if (!isJury) return; // for non-jury, normal navigation
+    if (assignmentStatus === "expired") return;
     setActiveSub(sub);
+    setSelectedAssignmentStatus(assignmentStatus);
     setDecisionType(null);
     setComment("");
-    setCriteria({ language: 7, meter: 7, imagery: 7, originality: 7, impact: 7 });
   };
 
   const closeModal = () => {
     setActiveSub(null);
+    setSelectedAssignmentStatus(null);
     setDecisionType(null);
     setComment("");
   };
@@ -136,6 +181,10 @@ export default function SubmissionsPage() {
   const handleSubmitDecision = (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeSub || !decisionType) return;
+    if (selectedAssignmentStatus !== "pending") {
+      closeModal();
+      return;
+    }
     if (decisionType === "reject" && comment.trim().length < 10) {
       setToast(lang === "ar" ? "يرجى تقديم سبب مفصل للرفض" : "Please provide a detailed reason for rejection");
       setTimeout(() => setToast(null), 3500);
@@ -150,6 +199,21 @@ export default function SubmissionsPage() {
     setTimeout(() => setToast(null), 3000);
     closeModal();
   };
+
+  useEffect(() => {
+    if (!isJury) return;
+    const params = new URLSearchParams(window.location.search);
+    const openId = Number(params.get("open") || "");
+    if (!openId) return;
+    const sub = fakeSubmissions.find((s) => s.id === openId);
+    const assignment = juryAssignments.find((a) => a.submissionId === openId);
+    if (sub && assignment) {
+      openModal(sub, assignment.status);
+      params.delete("open");
+      const next = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
+      window.history.replaceState({}, "", next);
+    }
+  }, [isJury]);
 
   return (
     <DashboardLayout>
@@ -195,7 +259,7 @@ export default function SubmissionsPage() {
                     : "border border-border text-foreground/50 hover:border-gold/30 hover:text-foreground"
                 }`}
               >
-                {s === "all" ? (lang === "ar" ? "الكل" : "All") : statusLabel(s)}
+                {s === "all" ? (lang === "ar" ? "الكل" : "All") : (isJury ? s.charAt(0).toUpperCase() + s.slice(1) : statusLabel(s))}
               </button>
             ))}
           </div>
@@ -218,8 +282,10 @@ export default function SubmissionsPage() {
                 )}
                 <th className="text-left px-4 py-3 text-xs font-semibold text-foreground/40 uppercase tracking-wider whitespace-nowrap">{lang === "ar" ? "العنوان" : "Poem Title"}</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-foreground/40 uppercase tracking-wider whitespace-nowrap">{lang === "ar" ? "النوع" : "Type"}</th>
+                {isJury && <th className="text-left px-4 py-3 text-xs font-semibold text-foreground/40 uppercase tracking-wider whitespace-nowrap">{lang === "ar" ? "تاريخ التعيين" : "Assigned Date"}</th>}
+                {isJury && <th className="text-left px-4 py-3 text-xs font-semibold text-foreground/40 uppercase tracking-wider whitespace-nowrap">{lang === "ar" ? "الموعد النهائي" : "Deadline"}</th>}
                 <th className="text-left px-4 py-3 text-xs font-semibold text-foreground/40 uppercase tracking-wider whitespace-nowrap">{lang === "ar" ? "الحالة" : "Status"}</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-foreground/40 uppercase tracking-wider whitespace-nowrap">{lang === "ar" ? "التاريخ" : "Date"}</th>
+                {!isJury && <th className="text-left px-4 py-3 text-xs font-semibold text-foreground/40 uppercase tracking-wider whitespace-nowrap">{lang === "ar" ? "التاريخ" : "Date"}</th>}
                 {!isJury && (
                   <th className="text-left px-4 py-3 text-xs font-semibold text-foreground/40 uppercase tracking-wider whitespace-nowrap">{lang === "ar" ? "النتيجة" : "Score"}</th>
                 )}
@@ -229,6 +295,11 @@ export default function SubmissionsPage() {
             <tbody className="divide-y divide-border/30">
               {filtered.map((sub, i) => {
                 const myDecision = submitted[sub.id];
+                const assignment = juryAssignments.find((a) => a.submissionId === sub.id);
+                const assignmentStatus =
+                  submitted[sub.id] ? "submitted" : (assignment?.status ?? null);
+                const actionLabel = assignmentStatus === "pending" ? "Evaluate" : assignmentStatus === "submitted" ? "View" : "Locked";
+                const normalizedType = normalizePoemType(sub.poemType);
                 return (
                   <motion.tr
                     key={sub.id}
@@ -236,7 +307,7 @@ export default function SubmissionsPage() {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: Math.min(i * 0.025, 0.4) }}
                     className="hover:bg-white/2 transition-colors group cursor-pointer"
-                    onClick={() => isJury && openModal(sub)}
+                    onClick={() => isJury && openModal(sub, assignmentStatus)}
                   >
                     <td className="px-4 py-3 font-mono text-xs text-foreground/60">{sub.referenceNumber}</td>
                     {showIdentity && (
@@ -249,21 +320,42 @@ export default function SubmissionsPage() {
                       <div className="font-medium">{lang === "ar" ? sub.poemTitleAr : sub.poemTitle}</div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`text-xs capitalize ${typeColors[sub.poemType] || ""}`}>{sub.poemType}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap ${statusColors[sub.status] || "bg-gray-500/15 text-gray-400 border border-gray-500/20"}`}>
-                        {statusLabel(sub.status)}
+                      <span className={`text-xs capitalize ${typeColors[normalizedType] || ""}`}>
+                        {normalizedType}
                       </span>
-                      {myDecision && (
-                        <span className={`ms-2 text-[10px] font-bold ${myDecision === "accept" ? "text-green-400" : "text-red-400"}`}>
-                          · {myDecision === "accept" ? "✓ Evaluated" : "✗ Rejected"}
-                        </span>
-                      )}
                     </td>
-                    <td className="px-4 py-3 text-xs text-foreground/50 whitespace-nowrap">
+                    {isJury && (
+                      <td className="px-4 py-3 text-xs text-foreground/70 whitespace-nowrap">
+                        {assignment ? new Date(assignment.assignedAt).toLocaleDateString() : "—"}
+                      </td>
+                    )}
+                    {isJury && (
+                      <td className="px-4 py-3 text-xs whitespace-nowrap">
+                        {assignmentStatus === "expired" ? (
+                          <span className={isDark ? "text-red-400" : "text-red-800"}>Expired</span>
+                        ) : (
+                          <span className={isDark ? "text-amber-300" : "text-amber-900"}>
+                            {assignment ? `${Math.max(1, Math.round((new Date(assignment.deadlineAt).getTime() - new Date().getTime()) / 36e5))}h left` : "—"}
+                          </span>
+                        )}
+                      </td>
+                    )}
+                    <td className="px-4 py-3">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                        isJury
+                          ? assignmentStatus === "pending"
+                            ? (isDark ? "bg-amber-500/15 text-amber-300 border border-amber-500/20" : "bg-amber-100 text-amber-900 border border-amber-300")
+                            : assignmentStatus === "submitted"
+                              ? (isDark ? "bg-green-500/15 text-green-300 border border-green-500/20" : "bg-green-100 text-green-900 border border-green-300")
+                              : (isDark ? "bg-red-500/15 text-red-300 border border-red-500/20" : "bg-red-100 text-red-900 border border-red-300")
+                          : statusColors[sub.status] || "bg-gray-500/15 text-gray-400 border border-gray-500/20"
+                      }`}>
+                        {isJury ? (assignmentStatus === "pending" ? "Pending" : assignmentStatus === "submitted" ? "Submitted" : "Expired") : statusLabel(sub.status)}
+                      </span>
+                    </td>
+                    {!isJury && <td className="px-4 py-3 text-xs text-foreground/50 whitespace-nowrap">
                       {new Date(sub.submittedAt).toLocaleDateString()}
-                    </td>
+                    </td>}
                     {!isJury && (
                       <td className="px-4 py-3">
                         {sub.finalScore != null ? (
@@ -276,10 +368,15 @@ export default function SubmissionsPage() {
                     <td className="px-4 py-3">
                       {isJury ? (
                         <button
-                          onClick={(e) => { e.stopPropagation(); openModal(sub); }}
-                          className="text-xs text-gold hover:underline whitespace-nowrap font-semibold"
+                          disabled={assignmentStatus === "expired"}
+                          onClick={(e) => { e.stopPropagation(); openModal(sub, assignmentStatus); }}
+                          className={`text-xs whitespace-nowrap font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                            assignmentStatus === "expired"
+                              ? "opacity-60 cursor-not-allowed border-border text-foreground/40"
+                              : "border-gold/30 text-gold hover:bg-gold/10"
+                          }`}
                         >
-                          {lang === "ar" ? "افتح للمراجعة" : "Review →"}
+                          {actionLabel}
                         </button>
                       ) : (
                         <Link href={`/dashboard/submissions/${sub.id}`}>
@@ -349,7 +446,9 @@ export default function SubmissionsPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div className="rounded-lg bg-foreground/5 p-3">
                     <p className="text-[10px] uppercase tracking-wider text-foreground/40">{lang === "ar" ? "النوع" : "Type"}</p>
-                    <p className={`text-sm font-semibold capitalize mt-0.5 ${typeColors[activeSub.poemType]}`}>{activeSub.poemType}</p>
+                    <p className={`text-sm font-semibold capitalize mt-0.5 ${typeColors[normalizePoemType(activeSub.poemType)]}`}>
+                      {normalizePoemType(activeSub.poemType)}
+                    </p>
                   </div>
                   <div className="rounded-lg bg-foreground/5 p-3">
                     <p className="text-[10px] uppercase tracking-wider text-foreground/40">{lang === "ar" ? "البحر" : "Meter"}</p>
@@ -390,36 +489,6 @@ export default function SubmissionsPage() {
                 {/* Evaluation form */}
                 <form onSubmit={handleSubmitDecision} className="space-y-5">
                   <div>
-                    <p className="text-sm font-semibold mb-3">
-                      {lang === "ar" ? "معايير التقييم (1-10)" : "Evaluation Criteria (1–10)"}
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {([
-                        ["language", lang === "ar" ? "اللغة والبلاغة" : "Language & Eloquence"],
-                        ["meter", lang === "ar" ? "الوزن والقافية" : "Meter & Rhyme"],
-                        ["imagery", lang === "ar" ? "الصور الشعرية" : "Imagery"],
-                        ["originality", lang === "ar" ? "الأصالة" : "Originality"],
-                        ["impact", lang === "ar" ? "الأثر العاطفي" : "Emotional Impact"],
-                      ] as const).map(([key, label]) => (
-                        <div key={key} className="rounded-lg border border-border p-3">
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-xs text-foreground/70">{label}</span>
-                            <span className="text-sm font-bold text-gold">{(criteria as any)[key]}</span>
-                          </div>
-                          <input
-                            type="range"
-                            min={1}
-                            max={10}
-                            value={(criteria as any)[key]}
-                            onChange={(e) => setCriteria({ ...criteria, [key]: Number(e.target.value) })}
-                            className="w-full accent-[#C8A96E]"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
                     <label className="text-sm font-semibold block mb-2">
                       {lang === "ar" ? "تعليق المُحكِّم" : "Jury Comment"}
                       {decisionType === "reject" && <span className="text-red-400 ms-1">*</span>}
@@ -439,6 +508,7 @@ export default function SubmissionsPage() {
 
                   <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-border/50">
                     <button
+                      disabled={selectedAssignmentStatus !== "pending"}
                       type="button"
                       onClick={() => setDecisionType("accept")}
                       className={`flex-1 py-3 rounded-xl font-semibold text-sm transition-all border-2 ${
@@ -450,6 +520,7 @@ export default function SubmissionsPage() {
                       ✓ {lang === "ar" ? "قبول" : "Accept"}
                     </button>
                     <button
+                      disabled={selectedAssignmentStatus !== "pending"}
                       type="button"
                       onClick={() => setDecisionType("reject")}
                       className={`flex-1 py-3 rounded-xl font-semibold text-sm transition-all border-2 ${
@@ -462,7 +533,7 @@ export default function SubmissionsPage() {
                     </button>
                   </div>
 
-                  {decisionType && (
+                  {decisionType && selectedAssignmentStatus === "pending" && (
                     <motion.button
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}

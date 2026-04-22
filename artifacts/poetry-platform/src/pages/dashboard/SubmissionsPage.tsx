@@ -111,6 +111,7 @@ interface JuryAssignment {
   submissionId: number;
   assignedAt: string;
   deadlineAt: string;
+  deadlineHoursLeft?: number;
   status: "pending" | "submitted" | "expired";
 }
 
@@ -135,10 +136,10 @@ const fakeSubmissions: Submission[] = [
 ];
 
 const juryAssignments: JuryAssignment[] = [
-  { submissionId: 10, assignedAt: "2026-02-25T09:00:00Z", deadlineAt: "2026-02-27T09:00:00Z", status: "pending" },
-  { submissionId: 1,  assignedAt: "2026-01-20T08:00:00Z", deadlineAt: "2026-01-22T08:00:00Z", status: "submitted" },
-  { submissionId: 9,  assignedAt: "2026-02-05T10:00:00Z", deadlineAt: "2026-02-07T10:00:00Z", status: "submitted" },
-  { submissionId: 12, assignedAt: "2026-01-15T14:00:00Z", deadlineAt: "2026-01-17T14:00:00Z", status: "submitted" },
+  { submissionId: 10, assignedAt: "2026-02-25T09:00:00Z", deadlineAt: "2026-02-27T09:00:00Z", deadlineHoursLeft: 42, status: "pending" },
+  { submissionId: 1,  assignedAt: "2026-01-20T08:00:00Z", deadlineAt: "2026-01-22T08:00:00Z", deadlineHoursLeft: 1, status: "submitted" },
+  { submissionId: 9,  assignedAt: "2026-02-05T10:00:00Z", deadlineAt: "2026-02-07T10:00:00Z", deadlineHoursLeft: 18, status: "submitted" },
+  { submissionId: 12, assignedAt: "2026-01-15T14:00:00Z", deadlineAt: "2026-01-17T14:00:00Z", deadlineHoursLeft: 6, status: "submitted" },
 ];
 
 
@@ -437,7 +438,7 @@ export default function SubmissionsPage() {
                           <span className={isDark ? "text-red-400" : "text-red-800"}>Expired</span>
                         ) : assignment ? (
                           <span className={isDark ? "text-amber-300" : "text-amber-900"}>
-                            {Math.max(0, Math.round((new Date(assignment.deadlineAt).getTime() - Date.now()) / 36e5))}h left
+                            {assignment.deadlineHoursLeft ?? Math.max(0, Math.round((new Date(assignment.deadlineAt).getTime() - Date.now()) / 36e5))}h left
                           </span>
                         ) : "—"}
                       </td>
@@ -520,7 +521,7 @@ export default function SubmissionsPage() {
               <div className="sticky top-0 z-10 bg-card/95 backdrop-blur-md border-b border-gold/15 px-6 py-4 flex items-center justify-between">
                 <div>
                   <p className="text-[10px] uppercase tracking-widest text-gold/70 font-semibold">
-                    {lang === "ar" ? "مراجعة مغفلة الهوية" : "Blind Review"}
+                    {lang === "ar" ? "مراجعة لجنة التحكيم" : "Jury Review"}
                   </p>
                   <h3 className="text-lg font-display font-bold mt-0.5">
                     {activeSub.referenceNumber} · {lang === "ar" ? activeSub.poemTitleAr : activeSub.poemTitle}
@@ -565,7 +566,7 @@ export default function SubmissionsPage() {
                 <form onSubmit={handleSubmitDecision} className="space-y-5">
                   <div>
                     <label className="text-sm font-semibold block mb-2">
-                      {lang === "ar" ? "تعليق المُحكِّم" : "Jury Comment"}
+                      {lang === "ar" ? "تعليق" : "Comment"}
                       {decisionType === "reject" && <span className="text-red-400 ms-1">*</span>}
                     </label>
                     <textarea

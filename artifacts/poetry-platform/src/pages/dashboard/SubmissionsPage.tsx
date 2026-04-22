@@ -146,6 +146,7 @@ const juryAssignments: JuryAssignment[] = [
 const JURY_STATUSES = ["all", "pending", "submitted", "expired"];
 const SULTAN_STATUSES = ["pending", "approved", "rejected"] as const;
 const SULTAN_DECISIONS_KEY = "sultan-final-decisions";
+const REVIEWER_DETAIL_SUPPORTED_IDS = new Set([1, 2, 3, 5, 7, 11, 13, 15]);
 
 export default function SubmissionsPage() {
   const { lang } = useLanguage();
@@ -202,7 +203,7 @@ export default function SubmissionsPage() {
         (s) => s.status === "sent_for_final_decision" || s.status === "approved" || s.status === "rejected"
       );
     }
-    return list.filter((s) => {
+    let next = list.filter((s) => {
       const assignment = juryAssignments.find((a) => a.submissionId === s.id);
       const juryStatus = assignment?.status;
       const matchStatus =
@@ -221,6 +222,22 @@ export default function SubmissionsPage() {
         s.referenceNumber.toLowerCase().includes(search.toLowerCase());
       return matchStatus && matchSearch;
     });
+
+    // Reviewer grid: keep one record per status and only records with detail pages
+    // so opening a row lands on the correct workflow stage view.
+    if (isReviewer && !isSultan && !isJury) {
+      next = next
+        .filter((s) => REVIEWER_DETAIL_SUPPORTED_IDS.has(s.id))
+        .sort((a, b) => +new Date(b.submittedAt) - +new Date(a.submittedAt));
+      const seen = new Set<string>();
+      next = next.filter((s) => {
+        if (seen.has(s.status)) return false;
+        seen.add(s.status);
+        return true;
+      });
+    }
+
+    return next;
   }, [statusFilter, search, isJury, isSultan, showIdentity, sultanDecisions]);
 
   // Reviewer "requests needing action" count = rows in Received status

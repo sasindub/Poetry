@@ -20,6 +20,7 @@ import AdminWorkflowConfigPage from "@/pages/dashboard/AdminWorkflowConfigPage";
 import AdminFormConfigPage from "@/pages/dashboard/AdminFormConfigPage";
 import AdminNotificationTemplatesPage from "@/pages/dashboard/AdminNotificationTemplatesPage";
 import AdminAuditLogPage from "@/pages/dashboard/AdminAuditLogPage";
+import ReportsPage from "@/pages/dashboard/ReportsPage";
 import AccessDenied from "@/pages/dashboard/AccessDenied";
 import NotFound from "@/pages/not-found";
 import { getAuthUser, type UserRole } from "@/lib/auth";
@@ -91,6 +92,9 @@ function Router() {
       </Route>
       <Route path="/dashboard/notification-templates">
         <ProtectedRoute component={AdminNotificationTemplatesPage} allowRoles={["sysadmin", "admin"]} />
+      </Route>
+      <Route path="/dashboard/reports">
+        <ProtectedRoute component={ReportsPage} allowRoles={["reviewer", "sultan", "sysadmin", "admin", "audit", "audit_user"]} />
       </Route>
       <Route path="/dashboard/audit-log">
         <ProtectedRoute component={AdminAuditLogPage} allowRoles={["audit", "audit_user"]} />

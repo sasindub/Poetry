@@ -26,6 +26,10 @@ const SULTAN_DECISIONS_KEY = "sultan-final-decisions";
 const ASSIGNED_JURY_KEY = "reviewer-assigned-jury";
 
 function stageIndex(status: string) {
+  // Per current UI requirement: treat Jury Form Under Review as Jury tab (Tab 5).
+  if (status === "jury_form_under_review") {
+    return STATUS_ORDER.indexOf("under_jury_review");
+  }
   const i = STATUS_ORDER.indexOf(status);
   return i === -1 ? 0 : i;
 }
@@ -124,6 +128,25 @@ const fakeDetails: Record<number, any> = {
     attachment: "voice_of_the_palm.pdf", submittedAt: "2026-01-30T10:00:00Z",
     reviewerNotes: "", finalScore: null, finalDecision: null, evaluations: [],
   },
+  3: {
+    id: 3, referenceNumber: "AHA-2026-003", status: "jury_form_under_review",
+    poetName: "Khalid Al Rashidi", poetNameAr: "خالد الراشدي",
+    poetEmail: "k.rashidi@email.com", poetPhone: "+971 50 678 3344",
+    poetNationality: "UAE", profileSource: "Auto-fetched from system",
+    requesterName: "Khalid Al Rashidi", requesterNameAr: "خالد الراشدي",
+    requesterRelationship: "Self", channel: "Internal Referral",
+    requestDate: "08 February 2026",
+    poemTitle: "Pearl of the Gulf", poemTitleAr: "لؤلؤة الخليج",
+    poemType: "Nabati", openingLine: "يا لؤلؤة الخليج يا درة المكان",
+    poemContent: "يا لؤلؤة الخليج يا درة المكان\nفي موجك الزاهي يطيب لنا الزمان\nوترتوي الأرواح من عطر البيان",
+    attachment: "pearl_of_the_gulf.pdf", submittedAt: "2026-02-08T10:00:00Z",
+    reviewerNotes: "Jury form prepared and under reviewer verification before final dispatch.",
+    finalScore: null, finalDecision: null,
+    evaluations: [
+      { id: 31, juryMemberName: "Prof. Ahmad Al Mazrouei", linguisticScore: 0, poeticScore: 0, originalityScore: 0, emotionalScore: 0, culturalScore: 0, totalScore: 0, recommendation: "approve", notes: "Initial response submitted." },
+      { id: 32, juryMemberName: "Dr. Layla Al Suwaidi", linguisticScore: 0, poeticScore: 0, originalityScore: 0, emotionalScore: 0, culturalScore: 0, totalScore: 0, recommendation: "no_decision", notes: "Pending response." },
+    ],
+  },
   5: {
     id: 5, referenceNumber: "AHA-2026-005", status: "sent_for_final_decision",
     poetName: "Omar Al Shamsi", poetNameAr: "عمر الشمسي",
@@ -174,6 +197,26 @@ const fakeDetails: Record<number, any> = {
     poemContent: "في صحراء الوطن يهمس النسيم\nويحكي قصص الأجداد للقديم",
     attachment: "mountains_of_hejaz.pdf", submittedAt: "2026-02-08T10:00:00Z",
     reviewerNotes: "", finalScore: null, finalDecision: null, evaluations: [],
+  },
+  10: {
+    id: 10, referenceNumber: "AHA-2026-010", status: "under_jury_review",
+    poetName: "Hessa Al Falasi", poetNameAr: "حصة الفلاسي",
+    poetEmail: "h.falasi@email.com", poetPhone: "+971 50 222 7788",
+    poetNationality: "UAE", profileSource: "Auto-fetched from system",
+    requesterName: "Hessa Al Falasi", requesterNameAr: "حصة الفلاسي",
+    requesterRelationship: "Self", channel: "WhatsApp",
+    requestDate: "25 February 2026",
+    poemTitle: "Whisper of the Wind", poemTitleAr: "همس الريح",
+    poemType: "Modern", openingLine: "يا ريح همسي خذي شوقي إلى الأفق",
+    poemContent: "يا ريح همسي خذي شوقي إلى الأفق\nوانثري النور فوق الرمل والطرق\nواكتبي للعلا شعراً من الألق",
+    attachment: "whisper_of_the_wind.pdf", submittedAt: "2026-02-25T10:00:00Z",
+    reviewerNotes: "Jury review in progress. Waiting for remaining jury responses.",
+    finalScore: null, finalDecision: null,
+    evaluations: [
+      { id: 40, juryMemberName: "Dr. Ahmed Al Nuaimi", linguisticScore: 0, poeticScore: 0, originalityScore: 0, emotionalScore: 0, culturalScore: 0, totalScore: 0, recommendation: "approve", notes: "Initial response submitted." },
+      { id: 41, juryMemberName: "Prof. Fatima Al Hashimi", linguisticScore: 0, poeticScore: 0, originalityScore: 0, emotionalScore: 0, culturalScore: 0, totalScore: 0, recommendation: "no_decision", notes: "Pending response." },
+      { id: 42, juryMemberName: "Dr. Mariam Al Suwaidi", linguisticScore: 0, poeticScore: 0, originalityScore: 0, emotionalScore: 0, culturalScore: 0, totalScore: 0, recommendation: "no_decision", notes: "Pending response." },
+    ],
   },
   13: {
     id: 13, referenceNumber: "AHA-2026-013", status: "jury_review_closed",
@@ -243,6 +286,19 @@ function Field({ label, value, missing, editable, editValue, onEdit }: {
   );
 }
 
+type ReviewerAction =
+  | "save_edits"
+  | "mark_under_review"
+  | "mark_ready_for_jury"
+  | "mark_pending_info"
+  | "confirm_jury_form"
+  | "dispatch_to_jury"
+  | "close_jury_stage"
+  | "begin_consolidation"
+  | "generate_final_form"
+  | "send_to_sultan"
+  | "send_notification";
+
 // ─── Main component ────────────────────────────────────────────────────────────
 export default function SubmissionDetail() {
   const { lang } = useLanguage();
@@ -267,13 +323,14 @@ export default function SubmissionDetail() {
   const [confirmDecision, setConfirmDecision] = useState<"approved" | "rejected" | null>(null);
   const [notifyChannels, setNotifyChannels] = useState({ email: true, sms: false, whatsapp: false });
   const [notifyMessage, setNotifyMessage] = useState("");
-  const [notifySuccessOpen, setNotifySuccessOpen] = useState(false);
+  const [reviewerConfirm, setReviewerConfirm] = useState<null | { action: ReviewerAction; title: string; message: string }>(null);
+  const [reviewerSuccessMessage, setReviewerSuccessMessage] = useState<string | null>(null);
 
   const [assignedJuryBySubmission, setAssignedJuryBySubmission] = useState<Record<number, { id: number; name: string; responded: boolean }[]>>(() => {
     const seeded: Record<number, { id: number; name: string; responded: boolean }[]> = {
       3: [
-        { id: 2, name: "Prof. Fatima Al Hashimi", responded: false },
-        { id: 4, name: "Dr. Mariam Al Suwaidi", responded: false },
+        { id: 3, name: "Prof. Ahmad Al Mazrouei", responded: true },
+        { id: 4, name: "Dr. Layla Al Suwaidi", responded: false },
       ],
       10: [
         { id: 1, name: "Dr. Khalid Al Mansoori", responded: false },
@@ -297,6 +354,18 @@ export default function SubmissionDetail() {
 
   const statusColors = isDark ? statusColorsDark : statusColorsLight;
   const currentStageIdx = stageIndex(submission.status);
+  const isJuryEvaluationPhase = [
+    "under_jury_review",
+    "jury_review_closed",
+    "under_consolidation",
+    "final_form_under_review",
+    "sent_for_final_decision",
+    "approved",
+    "rejected",
+    "returned_for_clarification",
+    "archived",
+  ].includes(submission.status);
+  const showAssignedJurySection = submission.status === "sent_to_jury";
 
   // Missing field detection
   const missingFields: string[] = [];
@@ -319,38 +388,43 @@ export default function SubmissionDetail() {
     setEdits({});
     setEditMode(false);
     showToast("Changes saved — logged to audit trail");
+    return true;
   }
 
   function markPendingInfo() {
     setSubmission((prev: any) => ({ ...prev, status: "pending_information" }));
     showToast("Status set to Pending Information Update");
+    return true;
   }
 
   function markUnderReview() {
     setSubmission((prev: any) => ({ ...prev, status: "under_review" }));
     showToast("Status set to Under Review");
+    return true;
   }
 
   function markReadyForJury() {
     if (hasMissing) {
       showToast("Cannot mark ready — please fill missing fields first");
-      return;
+      return false;
     }
     setSubmission((prev: any) => ({ ...prev, status: "jury_form_under_review" }));
     setShowJuryForm(true);
     showToast("Jury form generated — please review before assigning");
+    return true;
   }
 
   function confirmJuryForm() {
     setShowJuryForm(false);
     setSubmission((prev: any) => ({ ...prev, status: "jury_form_under_review" }));
     showToast("Jury form locked. Proceed to assign jury members.");
+    return true;
   }
 
   function dispatchToJury() {
     if (selectedJury.length === 0) {
       showToast("Please select at least one jury member");
-      return;
+      return false;
     }
     setShowJuryModal(false);
     setSubmission((prev: any) => ({ ...prev, status: "sent_to_jury" }));
@@ -364,26 +438,31 @@ export default function SubmissionDetail() {
       return next;
     });
     showToast(`Dispatched to ${selectedJury.length} jury member(s) — deadline: ${deadline}h`);
+    return true;
   }
 
   function closeJuryStage() {
     setSubmission((prev: any) => ({ ...prev, status: "jury_review_closed" }));
     showToast("Jury stage closed manually");
+    return true;
   }
 
   function proceedToConsolidation() {
     setSubmission((prev: any) => ({ ...prev, status: "under_consolidation" }));
     showToast("Moved to consolidation");
+    return true;
   }
 
   function generateFinalForm() {
     setSubmission((prev: any) => ({ ...prev, status: "final_form_under_review" }));
     showToast("Final executive form generated — please review");
+    return true;
   }
 
   function sendToSultan() {
     setSubmission((prev: any) => ({ ...prev, status: "sent_for_final_decision" }));
     showToast("Final form sent to Dr. Sultan for decision");
+    return true;
   }
 
   function sultanDecision(decision: "approved" | "rejected") {
@@ -406,10 +485,10 @@ export default function SubmissionDetail() {
   function sendNotification() {
     if (!notifyChannels.email && !notifyChannels.sms && !notifyChannels.whatsapp) {
       showToast("Select at least one channel to notify");
-      return;
+      return false;
     }
     setSubmission((prev: any) => ({ ...prev, status: "archived" }));
-    setNotifySuccessOpen(true);
+    return true;
   }
 
   function confirmSultanDecision() {
@@ -425,6 +504,62 @@ export default function SubmissionDetail() {
     }
     setConfirmDecision(null);
     navigate("/dashboard/submissions");
+  }
+
+  const reviewerSuccessText: Record<ReviewerAction, string> = {
+    save_edits: "Changes saved successfully.",
+    mark_under_review: "Submission marked as Under Review.",
+    mark_ready_for_jury: "Jury form generated successfully.",
+    mark_pending_info: "Submission marked as Pending Information Update.",
+    confirm_jury_form: "Jury form confirmed and locked.",
+    dispatch_to_jury: "Jury members assigned and dispatch completed.",
+    close_jury_stage: "Jury stage closed successfully.",
+    begin_consolidation: "Moved to consolidation stage.",
+    generate_final_form: "Final executive form generated.",
+    send_to_sultan: "Final form sent to Dr. Sultan.",
+    send_notification: "Notification sent successfully. Submission archived.",
+  };
+
+  function requestReviewerConfirmation(action: ReviewerAction, title: string, message: string) {
+    setReviewerConfirm({ action, title, message });
+  }
+
+  function runReviewerAction(action: ReviewerAction): boolean {
+    switch (action) {
+      case "save_edits":
+        return saveEdits();
+      case "mark_under_review":
+        return markUnderReview();
+      case "mark_ready_for_jury":
+        return markReadyForJury();
+      case "mark_pending_info":
+        return markPendingInfo();
+      case "confirm_jury_form":
+        return confirmJuryForm();
+      case "dispatch_to_jury":
+        return dispatchToJury();
+      case "close_jury_stage":
+        return closeJuryStage();
+      case "begin_consolidation":
+        return proceedToConsolidation();
+      case "generate_final_form":
+        return generateFinalForm();
+      case "send_to_sultan":
+        return sendToSultan();
+      case "send_notification":
+        return sendNotification();
+      default:
+        return false;
+    }
+  }
+
+  function confirmReviewerAction() {
+    if (!reviewerConfirm) return;
+    const ok = runReviewerAction(reviewerConfirm.action);
+    if (ok) {
+      setReviewerSuccessMessage(reviewerSuccessText[reviewerConfirm.action]);
+    }
+    setReviewerConfirm(null);
   }
 
   // Reviewer action buttons based on current status
@@ -450,7 +585,9 @@ export default function SubmissionDetail() {
               ) : (
                 <>
                   <button
-                    onClick={saveEdits}
+                    onClick={() =>
+                      requestReviewerConfirmation("save_edits", "Confirm Save Changes", "Save the edited submission details?")
+                    }
                     className="px-4 py-2 rounded-lg gold-gradient text-navy text-sm font-semibold transition-all"
                   >
                     Save changes
@@ -465,14 +602,18 @@ export default function SubmissionDetail() {
               )}
               {s !== "under_review" && (
                 <button
-                  onClick={markUnderReview}
+                  onClick={() =>
+                    requestReviewerConfirmation("mark_under_review", "Confirm Status Update", "Mark this submission as Under Review?")
+                  }
                   className="px-4 py-2 rounded-lg border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 text-sm font-medium transition-all"
                 >
                   Mark as Under Review
                 </button>
               )}
               <button
-                onClick={markReadyForJury}
+                onClick={() =>
+                  requestReviewerConfirmation("mark_ready_for_jury", "Confirm Jury Preparation", "Generate jury form and move to jury preparation stage?")
+                }
                 disabled={hasMissing}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border ${
                   hasMissing
@@ -485,7 +626,9 @@ export default function SubmissionDetail() {
               </button>
               {s !== "pending_information" && (
                 <button
-                  onClick={markPendingInfo}
+                  onClick={() =>
+                    requestReviewerConfirmation("mark_pending_info", "Confirm Status Update", "Mark this submission as Pending Information Update?")
+                  }
                   className="px-4 py-2 rounded-lg border border-orange-500/30 text-orange-400 hover:bg-orange-500/10 text-sm font-medium transition-all"
                 >
                   Mark pending information update
@@ -494,20 +637,22 @@ export default function SubmissionDetail() {
             </>
           )}
 
-          {/* Stage 3 – Jury form review */}
+          {/* Stage 3 mapped to Jury tab in UI – do not show assignment actions here */}
           {s === "jury_form_under_review" && (
             <>
               <button
                 onClick={() => setShowJuryForm(true)}
                 className="px-4 py-2 rounded-lg border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/10 text-sm font-medium transition-all"
               >
-                Preview jury form
+                View jury form
               </button>
               <button
-                onClick={() => setShowJuryModal(true)}
-                className="px-4 py-2 rounded-lg gold-gradient text-navy text-sm font-semibold transition-all"
+                onClick={() =>
+                  requestReviewerConfirmation("close_jury_stage", "Confirm Jury Closure", "Close the jury stage for this submission?")
+                }
+                className="px-4 py-2 rounded-lg border border-teal-500/30 text-teal-400 hover:bg-teal-500/10 text-sm font-medium transition-all"
               >
-                Confirm form → Assign jury
+                Close jury stage manually
               </button>
             </>
           )}
@@ -515,7 +660,9 @@ export default function SubmissionDetail() {
           {/* Stage 4 – Already sent to jury / monitoring */}
           {(s === "sent_to_jury" || s === "under_jury_review") && (
             <button
-              onClick={closeJuryStage}
+              onClick={() =>
+                requestReviewerConfirmation("close_jury_stage", "Confirm Jury Closure", "Close the jury stage for this submission?")
+              }
               className="px-4 py-2 rounded-lg border border-teal-500/30 text-teal-400 hover:bg-teal-500/10 text-sm font-medium transition-all"
             >
               Close jury stage manually
@@ -525,7 +672,9 @@ export default function SubmissionDetail() {
           {/* Stage 6→7 – Jury closed → consolidation */}
           {s === "jury_review_closed" && (
             <button
-              onClick={proceedToConsolidation}
+              onClick={() =>
+                requestReviewerConfirmation("begin_consolidation", "Confirm Consolidation", "Move this submission to consolidation stage?")
+              }
               className="px-4 py-2 rounded-lg border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 text-sm font-medium transition-all"
             >
               Begin consolidation
@@ -535,7 +684,9 @@ export default function SubmissionDetail() {
           {/* Stage 7 – Consolidation */}
           {s === "under_consolidation" && (
             <button
-              onClick={generateFinalForm}
+              onClick={() =>
+                requestReviewerConfirmation("generate_final_form", "Confirm Final Form", "Generate final executive form now?")
+              }
               className="px-4 py-2 rounded-lg gold-gradient text-navy text-sm font-semibold transition-all"
             >
               Generate final executive form
@@ -545,7 +696,9 @@ export default function SubmissionDetail() {
           {/* Stage 8 – Final form review */}
           {s === "final_form_under_review" && (
             <button
-              onClick={sendToSultan}
+              onClick={() =>
+                requestReviewerConfirmation("send_to_sultan", "Confirm Send to Dr. Sultan", "Send the final form to Dr. Sultan for decision?")
+              }
               className="px-4 py-2 rounded-lg gold-gradient text-navy text-sm font-semibold transition-all"
             >
               Send to Dr. Sultan
@@ -745,41 +898,87 @@ export default function SubmissionDetail() {
             <Field label="Date created" value={submission.requestDate} />
           </div>
 
-          <div className="mt-4 pt-4 border-t border-border/50">
-            <h3 className="text-xs font-semibold text-foreground/40 uppercase tracking-wider mb-2">Assigned Jury</h3>
-            {(assignedJuryBySubmission[submission.id] ?? []).length > 0 && (
-              <div className="space-y-2">
-                {(assignedJuryBySubmission[submission.id] ?? []).map((member) => (
-                  <div key={member.id} className="rounded-lg border border-border/50 bg-background/30 px-3 py-2 flex items-center justify-between">
-                    <p className="text-sm">{member.name}</p>
-                    <span
-                      className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                        member.responded
-                          ? "bg-green-500/15 text-green-400 border border-green-500/20"
-                          : "bg-amber-500/15 text-amber-400 border border-amber-500/20"
-                      }`}
-                    >
-                      {member.responded ? "Responded" : "Not Responded"}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          {showAssignedJurySection && (
+            <div className="mt-4 pt-4 border-t border-border/50">
+              <h3 className="text-xs font-semibold text-foreground/40 uppercase tracking-wider mb-2">Assigned Jury</h3>
+              {(assignedJuryBySubmission[submission.id] ?? []).length > 0 && (
+                <div className="space-y-2">
+                  {(assignedJuryBySubmission[submission.id] ?? []).map((member) => (
+                    <div key={member.id} className="rounded-lg border border-border/50 bg-background/30 px-3 py-2 flex items-center justify-between">
+                      <p className="text-sm">{member.name}</p>
+                      <span
+                        className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                          member.responded
+                            ? "bg-green-500/15 text-green-400 border border-green-500/20"
+                            : "bg-amber-500/15 text-amber-400 border border-amber-500/20"
+                        }`}
+                      >
+                        {member.responded ? "Responded" : "Not Responded"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </motion.div>
 
         {/* ── Jury evaluations (if any) ─────────────────────────────────────── */}
-        {submission.evaluations?.length > 0 && (
+        {(submission.evaluations?.length > 0 || isJuryEvaluationPhase) && (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-panel rounded-xl border border-gold/10 p-5">
             <h2 className="text-sm font-semibold text-foreground/70 uppercase tracking-wider mb-4">Jury Evaluations</h2>
 
-            {/* Summary stats */}
             {(() => {
-              const evs = submission.evaluations;
+              const assigned = assignedJuryBySubmission[submission.id] ?? [];
+              const respondedNames = new Set(
+                (submission.evaluations ?? [])
+                  .filter((e: any) => e.recommendation !== "no_decision")
+                  .map((e: any) => e.juryMemberName)
+              );
+              const responseTracker = assigned.map((m) => ({
+                ...m,
+                responded: m.responded || respondedNames.has(m.name),
+              }));
+              const isJuryUnderReview = submission.status === "under_jury_review";
+              const visibleEvaluations = isJuryUnderReview
+                ? submission.evaluations.filter((e: any) => e.recommendation !== "no_decision")
+                : submission.evaluations;
+
+              if (isJuryUnderReview && visibleEvaluations.length === 0) {
+                return (
+                  <div className="rounded-lg border border-border/50 bg-background/30 p-4 text-sm text-foreground/50">
+                    No jury responses received yet.
+                  </div>
+                );
+              }
+
+              const evs = visibleEvaluations;
               const accepted = evs.filter((e: any) => e.recommendation === "approve").length;
               const rejected = evs.filter((e: any) => e.recommendation === "reject").length;
               const noDecision = evs.filter((e: any) => e.recommendation === "no_decision").length;
               return (
+                <>
+                {responseTracker.length > 0 && (
+                  <div className="mb-4 rounded-lg border border-border/50 bg-background/30 p-3">
+                    <p className="text-xs text-foreground/40 mb-2 uppercase tracking-wider">Jury Response Status</p>
+                    <div className="space-y-2">
+                      {responseTracker.map((member) => (
+                        <div key={member.id} className="flex items-center justify-between rounded-md border border-border/40 px-3 py-2">
+                          <p className="text-sm">{member.name}</p>
+                          <span
+                            className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                              member.responded
+                                ? "bg-green-500/15 text-green-400 border border-green-500/20"
+                                : "bg-amber-500/15 text-amber-400 border border-amber-500/20"
+                            }`}
+                          >
+                            {member.responded ? "Responded" : "Not Responded"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="grid grid-cols-3 gap-3 mb-5">
                   <div className="rounded-lg bg-green-500/10 border border-green-500/20 p-3 text-center">
                     <p className="text-2xl font-display font-bold text-green-400">{accepted}</p>
@@ -794,11 +993,8 @@ export default function SubmissionDetail() {
                     <p className="text-xs text-foreground/40 mt-0.5">No Decision</p>
                   </div>
                 </div>
-              );
-            })()}
-
-            <div className="space-y-4">
-              {submission.evaluations.map((ev: any) => (
+                <div className="space-y-4">
+                  {visibleEvaluations.map((ev: any) => (
                 <div key={ev.id} className="border border-border/50 rounded-xl p-4 bg-background/30">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3">
@@ -826,8 +1022,11 @@ export default function SubmissionDetail() {
                     </p>
                   )}
                 </div>
-              ))}
-            </div>
+                  ))}
+                </div>
+                </>
+              );
+            })()}
 
             {/* Sultan decision and notification stage */}
             {(submission.status === "approved" || submission.status === "rejected" || submission.status === "archived") && (
@@ -897,7 +1096,9 @@ export default function SubmissionDetail() {
                     <p className="text-xs text-foreground/50 mt-2">Notification already sent. Current status: Archived.</p>
                   ) : (
                     <button
-                      onClick={sendNotification}
+                      onClick={() =>
+                        requestReviewerConfirmation("send_notification", "Confirm Notification", "Send notification through selected channels and archive this case?")
+                      }
                       className="mt-2 px-4 py-2 rounded-lg gold-gradient text-navy text-sm font-semibold"
                     >
                       Send Notification
@@ -961,12 +1162,12 @@ export default function SubmissionDetail() {
 
       {/* ── Jury form preview modal (Stage 3) ────────────────────────────────── */}
       <AnimatePresence>
-        {notifySuccessOpen && (
+        {reviewerSuccessMessage && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setNotifySuccessOpen(false)}
+            onClick={() => setReviewerSuccessMessage(null)}
             className="fixed inset-0 z-[130] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
           >
             <motion.div
@@ -981,20 +1182,53 @@ export default function SubmissionDetail() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h3 className="text-lg font-display font-bold text-center mb-1">Notification Sent</h3>
-              <p className="text-sm text-foreground/60 text-center mb-5">
-                The applicant has been notified successfully and this case is now archived.
-              </p>
+              <h3 className="text-lg font-display font-bold text-center mb-1">Action Completed</h3>
+              <p className="text-sm text-foreground/60 text-center mb-5">{reviewerSuccessMessage}</p>
               <div className="rounded-lg border border-border/50 bg-background/40 px-3 py-2 mb-4">
-                <p className="text-xs text-foreground/40 mb-1">Current Status</p>
-                <p className="text-sm font-semibold text-foreground">Archived</p>
+                <p className="text-xs text-foreground/40 mb-1">Current Submission Status</p>
+                <p className="text-sm font-semibold text-foreground">{statusLabel(submission.status)}</p>
               </div>
               <button
-                onClick={() => setNotifySuccessOpen(false)}
+                onClick={() => setReviewerSuccessMessage(null)}
                 className="w-full py-2.5 rounded-lg gold-gradient text-navy text-sm font-semibold"
               >
                 Done
               </button>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {reviewerConfirm && isReviewer && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setReviewerConfirm(null)}
+            className="fixed inset-0 z-[125] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 16, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 16, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="glass-panel rounded-2xl border border-gold/30 w-full max-w-md bg-card p-6"
+            >
+              <h3 className="text-lg font-display font-bold mb-2">{reviewerConfirm.title}</h3>
+              <p className="text-sm text-foreground/60 mb-5">{reviewerConfirm.message}</p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setReviewerConfirm(null)}
+                  className="flex-1 py-2.5 rounded-lg border border-border text-foreground/60 hover:border-gold/20 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmReviewerAction}
+                  className="flex-1 py-2.5 rounded-lg gold-gradient text-navy text-sm font-semibold transition-all"
+                >
+                  Confirm
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}
@@ -1083,7 +1317,9 @@ export default function SubmissionDetail() {
                 </div>
                 <div className="pt-4 border-t border-border/50 flex gap-3">
                   <button
-                    onClick={confirmJuryForm}
+                    onClick={() =>
+                      requestReviewerConfirmation("confirm_jury_form", "Confirm Jury Form", "Lock this jury form and continue?")
+                    }
                     className="flex-1 py-3 rounded-xl gold-gradient text-navy font-bold text-sm"
                   >
                     Confirm & lock jury form
@@ -1195,7 +1431,9 @@ export default function SubmissionDetail() {
 
                 {/* Dispatch */}
                 <button
-                  onClick={dispatchToJury}
+                  onClick={() =>
+                    requestReviewerConfirmation("dispatch_to_jury", "Confirm Jury Assignment", `Dispatch to jury with ${selectedJury.length} selected member(s)?`)
+                  }
                   disabled={selectedJury.length === 0}
                   className={`w-full py-3.5 rounded-xl font-bold text-base transition-all ${
                     selectedJury.length > 0

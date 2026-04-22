@@ -40,7 +40,7 @@ export function canAccessJuryPanel(userRole: UserRole | undefined): boolean {
 }
 
 export function canAccessReports(userRole: UserRole | undefined): boolean {
-  return hasAnyRole(userRole, [roles.sultan, roles.sysadmin, roles.admin, roles.audit]);
+  return hasAnyRole(userRole, [roles.reviewer, roles.sultan, roles.sysadmin, roles.admin, roles.audit, roles.audit_user]);
 }
 
 export function canAccessSubmissionDetail(userRole: UserRole | undefined): boolean {

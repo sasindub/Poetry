@@ -18,6 +18,7 @@ const STAGES = [
   { key: "final_form_under_review", label: "Final Form" },
   { key: "sent_for_final_decision", label: "Decision" },
   { key: "approved",                label: "Notify" },
+  { key: "archived",                label: "Archived" },
 ];
 
 const STATUS_ORDER = STAGES.map((s) => s.key);
@@ -263,6 +264,9 @@ export default function SubmissionDetail() {
   const [deadline, setDeadline] = useState("48");
   const [consolidationNote, setConsolidationNote] = useState("");
   const [confirmDecision, setConfirmDecision] = useState<"approved" | "rejected" | null>(null);
+  const [notifyChannels, setNotifyChannels] = useState({ email: true, sms: false, whatsapp: false });
+  const [notifyMessage, setNotifyMessage] = useState("");
+  const [notifySuccessOpen, setNotifySuccessOpen] = useState(false);
 
   const statusColors = isDark ? statusColorsDark : statusColorsLight;
   const currentStageIdx = stageIndex(submission.status);
@@ -357,6 +361,19 @@ export default function SubmissionDetail() {
 
   function requestSultanDecision(decision: "approved" | "rejected") {
     setConfirmDecision(decision);
+  }
+
+  function toggleNotifyChannel(channel: "email" | "sms" | "whatsapp") {
+    setNotifyChannels((prev) => ({ ...prev, [channel]: !prev[channel] }));
+  }
+
+  function sendNotification() {
+    if (!notifyChannels.email && !notifyChannels.sms && !notifyChannels.whatsapp) {
+      showToast("Select at least one channel to notify");
+      return;
+    }
+    setSubmission((prev: any) => ({ ...prev, status: "archived" }));
+    setNotifySuccessOpen(true);
   }
 
   function confirmSultanDecision() {
@@ -754,6 +771,84 @@ export default function SubmissionDetail() {
               ))}
             </div>
 
+            {/* Sultan decision and notification stage */}
+            {(submission.status === "approved" || submission.status === "rejected" || submission.status === "archived") && (
+              <div className="mt-5 pt-4 border-t border-border/50 space-y-3">
+                <h3 className="text-xs font-semibold text-foreground/40 uppercase tracking-wider">Final Decision & Notify</h3>
+                <div className="rounded-lg border border-border/50 bg-background/30 p-3">
+                  <p className="text-xs text-foreground/40 mb-1">Dr. Sultan Decision</p>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                        submission.status === "rejected"
+                          ? "bg-red-500/15 text-red-400 border border-red-500/20"
+                          : "bg-green-500/15 text-green-400 border border-green-500/20"
+                      }`}
+                    >
+                      {submission.status === "rejected" ? "Rejected" : "Approved"}
+                    </span>
+                  </div>
+                  <p className="text-sm text-foreground/60">
+                    {submission.finalDecision || "Final decision recorded by Dr. Sultan."}
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="text-xs font-semibold text-foreground/40 uppercase tracking-wider mb-2">Notify</h4>
+                  <div className="flex gap-4 text-xs">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={notifyChannels.email}
+                        onChange={() => toggleNotifyChannel("email")}
+                        className="accent-gold"
+                        disabled={submission.status === "archived"}
+                      />
+                      Email
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={notifyChannels.sms}
+                        onChange={() => toggleNotifyChannel("sms")}
+                        className="accent-gold"
+                        disabled={submission.status === "archived"}
+                      />
+                      SMS
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={notifyChannels.whatsapp}
+                        onChange={() => toggleNotifyChannel("whatsapp")}
+                        className="accent-gold"
+                        disabled={submission.status === "archived"}
+                      />
+                      WhatsApp
+                    </label>
+                  </div>
+                  <textarea
+                    rows={3}
+                    value={notifyMessage}
+                    onChange={(e) => setNotifyMessage(e.target.value)}
+                    disabled={submission.status === "archived"}
+                    placeholder={submission.status === "rejected" ? "Rejection notification message..." : "Approval notification message..."}
+                    className="mt-2 w-full bg-background/50 border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gold/50 resize-none disabled:opacity-60"
+                  />
+                  {submission.status === "archived" ? (
+                    <p className="text-xs text-foreground/50 mt-2">Notification already sent. Current status: Archived.</p>
+                  ) : (
+                    <button
+                      onClick={sendNotification}
+                      className="mt-2 px-4 py-2 rounded-lg gold-gradient text-navy text-sm font-semibold"
+                    >
+                      Send Notification
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Consolidation notes (visible during consolidation stage) */}
             {submission.status === "under_consolidation" && (
               <div className="mt-4 space-y-2">
@@ -808,6 +903,44 @@ export default function SubmissionDetail() {
 
       {/* ── Jury form preview modal (Stage 3) ────────────────────────────────── */}
       <AnimatePresence>
+        {notifySuccessOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setNotifySuccessOpen(false)}
+            className="fixed inset-0 z-[130] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 16, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 16, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="glass-panel rounded-2xl border border-gold/30 w-full max-w-md bg-card p-6"
+            >
+              <div className="w-14 h-14 rounded-full gold-gradient mx-auto mb-4 flex items-center justify-center">
+                <svg className="w-7 h-7 text-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-display font-bold text-center mb-1">Notification Sent</h3>
+              <p className="text-sm text-foreground/60 text-center mb-5">
+                The applicant has been notified successfully and this case is now archived.
+              </p>
+              <div className="rounded-lg border border-border/50 bg-background/40 px-3 py-2 mb-4">
+                <p className="text-xs text-foreground/40 mb-1">Current Status</p>
+                <p className="text-sm font-semibold text-foreground">Archived</p>
+              </div>
+              <button
+                onClick={() => setNotifySuccessOpen(false)}
+                className="w-full py-2.5 rounded-lg gold-gradient text-navy text-sm font-semibold"
+              >
+                Done
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+
         {confirmDecision && isSultan && (
           <motion.div
             initial={{ opacity: 0 }}

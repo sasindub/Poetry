@@ -153,7 +153,7 @@ export default function LoginPage() {
           transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
         />
         <div className={`absolute inset-0 arabic-pattern ${isDark ? "opacity-25" : "opacity-15"}`} />
-        <FloatingMusicNotes count={12} rings equalizer goldColor={isDark ? "#C8A96E" : "#A87828"} />
+        <FloatingMusicNotes count={12} rings equalizer={false} goldColor={isDark ? "#C8A96E" : "#A87828"} />
 
         <div className="relative z-10 text-center px-8 max-w-sm">
           <motion.div

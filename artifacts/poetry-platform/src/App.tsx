@@ -63,15 +63,15 @@ function Router() {
 
       {/* Dashboard */}
       <Route path="/dashboard">
-        <ProtectedRoute component={DashboardHome} />
+        <ProtectedRoute component={DashboardHome} allowRoles={["reviewer", "jury", "sultan", "sysadmin", "admin"]} />
       </Route>
       <Route path="/dashboard/submissions">
-        <ProtectedRoute component={SubmissionsPage} />
+        <ProtectedRoute component={SubmissionsPage} allowRoles={["reviewer", "jury", "sultan", "sysadmin", "admin"]} />
       </Route>
       <Route path="/dashboard/submissions/:id">
         <ProtectedRoute
           component={SubmissionDetail}
-          allowRoles={["reviewer", "sultan", "sysadmin", "admin", "audit"]}
+          allowRoles={["reviewer", "sultan", "sysadmin", "admin"]}
         />
       </Route>
       <Route path="/dashboard/users">
@@ -93,10 +93,10 @@ function Router() {
         <ProtectedRoute component={AdminNotificationTemplatesPage} allowRoles={["sysadmin", "admin"]} />
       </Route>
       <Route path="/dashboard/audit-log">
-        <ProtectedRoute component={AdminAuditLogPage} allowRoles={["sysadmin", "admin", "audit"]} />
+        <ProtectedRoute component={AdminAuditLogPage} allowRoles={["audit", "audit_user"]} />
       </Route>
       <Route path="/dashboard/settings">
-        <ProtectedRoute component={SettingsPage} />
+        <ProtectedRoute component={SettingsPage} allowRoles={["reviewer", "jury", "sultan", "sysadmin", "admin"]} />
       </Route>
 
       <Route component={NotFound} />

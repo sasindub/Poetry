@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { getAuthUser } from "@/lib/auth";
 
 type JuryMember = {
   id: number;
@@ -9,6 +10,13 @@ type JuryMember = {
   availability: "available" | "busy" | "inactive";
   responseRate: number;
   active: boolean;
+};
+
+type JuryAssignedPoem = {
+  id: number;
+  title: string;
+  referenceNumber: string;
+  responded: boolean;
 };
 
 const initialJury: JuryMember[] = [
@@ -20,9 +28,34 @@ const initialJury: JuryMember[] = [
 ];
 
 export default function JuryPage() {
+  const user = getAuthUser();
+  const canManageJuryPool =
+    user?.role === "sysadmin" || user?.role === "system_administrator" || user?.role === "admin";
+
   const [jury, setJury] = useState<JuryMember[]>(initialJury);
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", availability: "available" as JuryMember["availability"] });
+  const [selectedMember, setSelectedMember] = useState<JuryMember | null>(null);
+
+  const juryAssignmentsQuickView: Record<number, JuryAssignedPoem[]> = {
+    1: [
+      { id: 10, title: "Whisper of the Wind", referenceNumber: "AHA-2026-010", responded: false },
+      { id: 13, title: "Song of the Sailors", referenceNumber: "AHA-2026-013", responded: true },
+    ],
+    2: [
+      { id: 3, title: "Pearl of the Gulf", referenceNumber: "AHA-2026-003", responded: false },
+      { id: 13, title: "Song of the Sailors", referenceNumber: "AHA-2026-013", responded: true },
+    ],
+    3: [
+      { id: 10, title: "Whisper of the Wind", referenceNumber: "AHA-2026-010", responded: true },
+    ],
+    4: [
+      { id: 3, title: "Pearl of the Gulf", referenceNumber: "AHA-2026-003", responded: false },
+    ],
+    5: [
+      { id: 13, title: "Song of the Sailors", referenceNumber: "AHA-2026-013", responded: false },
+    ],
+  };
 
   function toggleMember(id: number) {
     setJury((prev) =>
@@ -60,9 +93,11 @@ export default function JuryPage() {
             Manage pre-registered jury members, availability, and response rate.
           </p>
         </div>
-        <button onClick={() => setCreateOpen(true)} className="px-4 py-2 rounded-lg border border-gold/30 text-gold hover:bg-gold/10 text-sm font-semibold">
-          + Add jury member
-        </button>
+        {canManageJuryPool && (
+          <button onClick={() => setCreateOpen(true)} className="px-4 py-2 rounded-lg border border-gold/30 text-gold hover:bg-gold/10 text-sm font-semibold">
+            + Add jury member
+          </button>
+        )}
       </div>
 
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-panel rounded-xl border border-gold/10 overflow-hidden">
@@ -76,7 +111,11 @@ export default function JuryPage() {
           </thead>
           <tbody className="divide-y divide-border/30">
             {jury.map((member) => (
-              <tr key={member.id} className="hover:bg-white/2 transition-colors">
+              <tr
+                key={member.id}
+                className="hover:bg-white/2 transition-colors cursor-pointer"
+                onClick={() => setSelectedMember(member)}
+              >
                 <td className="px-4 py-3 font-medium">{member.name}</td>
                 <td className="px-4 py-3 text-foreground/60">{member.email}</td>
                 <td className="px-4 py-3">
@@ -94,12 +133,16 @@ export default function JuryPage() {
                 </td>
                 <td className="px-4 py-3 font-semibold">{member.responseRate}%</td>
                 <td className="px-4 py-3">
-                  <button
-                    onClick={() => toggleMember(member.id)}
-                    className="text-xs font-semibold text-gold border border-gold/30 hover:bg-gold/10 px-3 py-1.5 rounded-lg transition-all whitespace-nowrap"
-                  >
-                    {member.active ? "Deactivate" : "Activate"}
-                  </button>
+                  {canManageJuryPool ? (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleMember(member.id); }}
+                      className="text-xs font-semibold text-gold border border-gold/30 hover:bg-gold/10 px-3 py-1.5 rounded-lg transition-all whitespace-nowrap"
+                    >
+                      {member.active ? "Deactivate" : "Activate"}
+                    </button>
+                  ) : (
+                    <span className="text-xs text-foreground/40">View only</span>
+                  )}
                 </td>
               </tr>
             ))}
@@ -156,6 +199,77 @@ export default function JuryPage() {
                   Add Member
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {selectedMember && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSelectedMember(null)}
+            className="fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 16, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 16, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="glass-panel rounded-2xl border border-gold/30 w-full max-w-2xl bg-card p-6"
+            >
+              <h3 className="text-lg font-display font-bold mb-1">{selectedMember.name}</h3>
+              <p className="text-sm text-foreground/50 mb-4">{selectedMember.email}</p>
+              <h4 className="text-xs font-semibold text-foreground/40 uppercase tracking-wider mb-2">
+                Assigned Poems (Quick View)
+              </h4>
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                <div className="rounded-lg border border-border/50 bg-background/40 p-2 text-center">
+                  <p className="text-lg font-display font-bold text-gold">{(juryAssignmentsQuickView[selectedMember.id] ?? []).length}</p>
+                  <p className="text-[10px] text-foreground/40 uppercase tracking-wider">Assigned</p>
+                </div>
+                <div className="rounded-lg border border-border/50 bg-background/40 p-2 text-center">
+                  <p className="text-lg font-display font-bold text-green-400">
+                    {(juryAssignmentsQuickView[selectedMember.id] ?? []).filter((p) => p.responded).length}
+                  </p>
+                  <p className="text-[10px] text-foreground/40 uppercase tracking-wider">Responded</p>
+                </div>
+                <div className="rounded-lg border border-border/50 bg-background/40 p-2 text-center">
+                  <p className="text-lg font-display font-bold text-amber-400">
+                    {(juryAssignmentsQuickView[selectedMember.id] ?? []).filter((p) => !p.responded).length}
+                  </p>
+                  <p className="text-[10px] text-foreground/40 uppercase tracking-wider">Pending</p>
+                </div>
+              </div>
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {(juryAssignmentsQuickView[selectedMember.id] ?? []).length === 0 ? (
+                  <p className="text-sm text-foreground/40">No assigned poems found.</p>
+                ) : (
+                  (juryAssignmentsQuickView[selectedMember.id] ?? []).map((poem) => (
+                    <div key={poem.id} className="rounded-lg border border-border/50 bg-background/40 p-3 flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">{poem.title}</p>
+                        <p className="text-xs text-foreground/40">{poem.referenceNumber}</p>
+                      </div>
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                        poem.responded
+                          ? "bg-green-500/15 text-green-400 border border-green-500/20"
+                          : "bg-amber-500/15 text-amber-400 border border-amber-500/20"
+                      }`}>
+                        {poem.responded ? "Responded" : "Not Responded"}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+              <button
+                onClick={() => setSelectedMember(null)}
+                className="mt-5 w-full py-2.5 rounded-lg border border-border text-foreground/60 hover:border-gold/20"
+              >
+                Close
+              </button>
             </motion.div>
           </motion.div>
         )}

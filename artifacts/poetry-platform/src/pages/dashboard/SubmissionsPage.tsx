@@ -90,6 +90,7 @@ function statusLabel(status: string): string {
   return labels[status] ?? status.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 }
 
+
 // ─── Types ─────────────────────────────────────────────────────────────────────
 interface Submission {
   id: number;
@@ -112,6 +113,7 @@ interface JuryAssignment {
   deadlineAt: string;
   status: "pending" | "submitted" | "expired";
 }
+
 
 // ─── Fake data ─────────────────────────────────────────────────────────────────
 const fakeSubmissions: Submission[] = [
@@ -138,6 +140,7 @@ const juryAssignments: JuryAssignment[] = [
   { submissionId: 9,  assignedAt: "2026-02-05T10:00:00Z", deadlineAt: "2026-02-07T10:00:00Z", status: "submitted" },
   { submissionId: 12, assignedAt: "2026-01-15T14:00:00Z", deadlineAt: "2026-01-17T14:00:00Z", status: "submitted" },
 ];
+
 
 // Jury-only data
 const JURY_STATUSES = ["all", "pending", "submitted", "expired"];

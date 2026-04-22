@@ -23,6 +23,7 @@ const STAGES = [
 
 const STATUS_ORDER = STAGES.map((s) => s.key);
 const SULTAN_DECISIONS_KEY = "sultan-final-decisions";
+const ASSIGNED_JURY_KEY = "reviewer-assigned-jury";
 
 function stageIndex(status: string) {
   const i = STATUS_ORDER.indexOf(status);
@@ -268,6 +269,32 @@ export default function SubmissionDetail() {
   const [notifyMessage, setNotifyMessage] = useState("");
   const [notifySuccessOpen, setNotifySuccessOpen] = useState(false);
 
+  const [assignedJuryBySubmission, setAssignedJuryBySubmission] = useState<Record<number, { id: number; name: string; responded: boolean }[]>>(() => {
+    const seeded: Record<number, { id: number; name: string; responded: boolean }[]> = {
+      3: [
+        { id: 2, name: "Prof. Fatima Al Hashimi", responded: false },
+        { id: 4, name: "Dr. Mariam Al Suwaidi", responded: false },
+      ],
+      10: [
+        { id: 1, name: "Dr. Khalid Al Mansoori", responded: false },
+        { id: 2, name: "Prof. Fatima Al Hashimi", responded: false },
+        { id: 3, name: "Dr. Ahmed Al Nuaimi", responded: true },
+      ],
+      13: [
+        { id: 1, name: "Dr. Khalid Al Mansoori", responded: true },
+        { id: 2, name: "Prof. Fatima Al Hashimi", responded: true },
+        { id: 5, name: "Prof. Salem Al Dhaheri", responded: false },
+      ],
+    };
+    try {
+      const raw = localStorage.getItem(ASSIGNED_JURY_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      return { ...seeded, ...parsed };
+    } catch {
+      return seeded;
+    }
+  });
+
   const statusColors = isDark ? statusColorsDark : statusColorsLight;
   const currentStageIdx = stageIndex(submission.status);
 
@@ -327,6 +354,15 @@ export default function SubmissionDetail() {
     }
     setShowJuryModal(false);
     setSubmission((prev: any) => ({ ...prev, status: "sent_to_jury" }));
+    const assignedMembers = selectedJury.map((juryId) => {
+      const member = JURY_MEMBERS.find((j) => j.id === juryId);
+      return { id: juryId, name: member?.name ?? `Jury ${juryId}`, responded: false };
+    });
+    setAssignedJuryBySubmission((prev) => {
+      const next = { ...prev, [submission.id]: assignedMembers };
+      localStorage.setItem(ASSIGNED_JURY_KEY, JSON.stringify(next));
+      return next;
+    });
     showToast(`Dispatched to ${selectedJury.length} jury member(s) — deadline: ${deadline}h`);
   }
 
@@ -707,6 +743,28 @@ export default function SubmissionDetail() {
           <div className="grid sm:grid-cols-2 gap-4">
             <Field label="Request ID" value={submission.referenceNumber} />
             <Field label="Date created" value={submission.requestDate} />
+          </div>
+
+          <div className="mt-4 pt-4 border-t border-border/50">
+            <h3 className="text-xs font-semibold text-foreground/40 uppercase tracking-wider mb-2">Assigned Jury</h3>
+            {(assignedJuryBySubmission[submission.id] ?? []).length > 0 && (
+              <div className="space-y-2">
+                {(assignedJuryBySubmission[submission.id] ?? []).map((member) => (
+                  <div key={member.id} className="rounded-lg border border-border/50 bg-background/30 px-3 py-2 flex items-center justify-between">
+                    <p className="text-sm">{member.name}</p>
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                        member.responded
+                          ? "bg-green-500/15 text-green-400 border border-green-500/20"
+                          : "bg-amber-500/15 text-amber-400 border border-amber-500/20"
+                      }`}
+                    >
+                      {member.responded ? "Responded" : "Not Responded"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </motion.div>
 

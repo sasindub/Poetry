@@ -15,8 +15,9 @@ export default function SubmitPage() {
     poetName: "",
     poetEmail: "",
     poetPhone: "",
-    poetNationality: "",
     requesterName: "",
+    requesterEmail: "",
+    requesterMobile: "",
     requesterRelationship: "",
     sourceChannel: "",
     poemTitle: "",
@@ -37,7 +38,6 @@ export default function SubmitPage() {
         poetName: form.poetName,
         poetEmail: form.poetEmail,
         poetPhone: form.poetPhone,
-        poetNationality: form.poetNationality,
         poemTitle: form.poemTitle,
         poemContent: form.poemContent,
         poemType: form.poemType,
@@ -85,7 +85,7 @@ export default function SubmitPage() {
             <div className="text-5xl font-arabic text-gold/60 mb-4" dir="rtl">مبروك</div>
             <p className="text-foreground/60 mb-6">{t("successMessage")}</p>
             <div className="bg-gold/10 border border-gold/20 rounded-lg p-4 mb-6">
-              <p className="text-xs text-foreground/50 mb-1">Reference Number</p>
+              <p className="text-xs text-foreground/50 mb-1">Request ID</p>
               <p className="text-xl font-mono font-bold text-gold">{refNum}</p>
             </div>
             <motion.a
@@ -151,9 +151,8 @@ export default function SubmitPage() {
                     { key: "poetName", label: t("poetName"), type: "text", required: true },
                     { key: "poetEmail", label: t("poetEmail"), type: "email", required: true },
                     { key: "poetPhone", label: t("poetPhone"), type: "tel" },
-                    { key: "poetNationality", label: t("poetNationality"), type: "text" },
                   ].map((field) => (
-                    <div key={field.key} className={field.key === "poetNationality" ? "sm:col-span-2" : ""}>
+                    <div key={field.key}>
                       <label className="block text-xs text-foreground/50 mb-1.5">
                         {field.label} {field.required && <span className="text-gold">*</span>}
                       </label>
@@ -183,6 +182,26 @@ export default function SubmitPage() {
                       type="text"
                       value={form.requesterName}
                       onChange={(e) => handleChange("requesterName", e.target.value)}
+                      required
+                      className="w-full bg-background/50 border border-border rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-foreground/50 mb-1.5">Requester Email <span className="text-gold">*</span></label>
+                    <input
+                      type="email"
+                      value={form.requesterEmail}
+                      onChange={(e) => handleChange("requesterEmail", e.target.value)}
+                      required
+                      className="w-full bg-background/50 border border-border rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-foreground/50 mb-1.5">Requester Mobile <span className="text-gold">*</span></label>
+                    <input
+                      type="tel"
+                      value={form.requesterMobile}
+                      onChange={(e) => handleChange("requesterMobile", e.target.value)}
                       required
                       className="w-full bg-background/50 border border-border rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20 transition-all"
                     />

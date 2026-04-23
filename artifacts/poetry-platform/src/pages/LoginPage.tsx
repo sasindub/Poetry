@@ -121,7 +121,11 @@ export default function LoginPage() {
         juryId: found.juryId,
       };
       setAuthUser(user, btoa(found.email + ":" + Date.now()));
-      navigate("/dashboard");
+      if (found.role === "audit" || found.role === "audit_user") {
+        navigate("/dashboard/audit-log");
+      } else {
+        navigate("/dashboard");
+      }
     }, 600);
   };
 

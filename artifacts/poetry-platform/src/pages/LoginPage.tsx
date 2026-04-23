@@ -7,6 +7,7 @@ import { setAuthUser, type UserRole, type AuthUser } from "@/lib/auth";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { FloatingMusicNotes } from "@/components/FloatingMusicNotes";
+import royalBorderImage from "@/assets/images/border.png";
 
 interface AccountProfile {
   email: string;
@@ -146,6 +147,20 @@ export default function LoginPage() {
         />
         <div className={`absolute inset-0 arabic-pattern ${isDark ? "opacity-25" : "opacity-15"}`} />
         <FloatingMusicNotes count={12} rings equalizer={false} goldColor={isDark ? "#C8A96E" : "#A87828"} />
+        <img
+          src={royalBorderImage}
+          alt=""
+          aria-hidden="true"
+          className={`absolute top-4 left-4 w-[9vw] min-w-[76px] max-w-[130px] opacity-20 select-none pointer-events-none ${isDark ? "mix-blend-screen" : "mix-blend-multiply"}`}
+          style={{ filter: isDark ? "grayscale(1) saturate(0) contrast(1.05) brightness(1.14)" : "none", opacity: isDark ? 0.2 : 0.2 }}
+        />
+        <img
+          src={royalBorderImage}
+          alt=""
+          aria-hidden="true"
+          className={`absolute bottom-4 right-4 w-[9vw] min-w-[76px] max-w-[130px] opacity-20 rotate-180 select-none pointer-events-none ${isDark ? "mix-blend-screen" : "mix-blend-multiply"}`}
+          style={{ filter: isDark ? "grayscale(1) saturate(0) contrast(1.05) brightness(1.14)" : "none", opacity: isDark ? 0.2 : 0.2 }}
+        />
 
         <div className="relative z-10 text-center px-8 max-w-sm">
           <motion.div

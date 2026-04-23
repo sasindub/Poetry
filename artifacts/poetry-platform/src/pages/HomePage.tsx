@@ -6,6 +6,7 @@ import { FloatingMusicNotes } from "@/components/FloatingMusicNotes";
 import { useLanguage } from "@/hooks/useLanguage";
 import { useTheme } from "@/hooks/useTheme";
 import { useGetDashboardStats } from "@workspace/api-client-react";
+import royalBorderImage from "@/assets/images/border.png";
 
 function AnimatedCounter({ target, duration = 2 }: { target: number; duration?: number }) {
   const [count, setCount] = useState(0);
@@ -110,6 +111,52 @@ export default function HomePage() {
             goldColor={isDark ? "#C8A96E" : "#B8820C"}
           />
         </div>
+
+        {/* Royal corner image frame */}
+        <motion.div
+          className="pointer-events-none absolute inset-0 z-[1]"
+        >
+          <motion.img
+            src={royalBorderImage}
+            alt=""
+            aria-hidden="true"
+            className={`absolute top-16 md:top-20 left-2 md:left-4 w-[10vw] min-w-[72px] max-w-[120px] select-none ${isDark ? "mix-blend-screen" : "mix-blend-multiply"}`}
+            style={{ filter: isDark ? "grayscale(1) saturate(0) contrast(1.05) brightness(1.18)" : "none" }}
+            initial={{ opacity: 0, scale: 0.82 }}
+            animate={{ opacity: isDark ? 0.14 : 0.24, scale: 1 }}
+            transition={{ duration: 1.05, ease: "easeOut", delay: 0.05 }}
+          />
+          <motion.img
+            src={royalBorderImage}
+            alt=""
+            aria-hidden="true"
+            className={`absolute top-16 md:top-20 right-2 md:right-4 w-[10vw] min-w-[72px] max-w-[120px] scale-x-[-1] select-none ${isDark ? "mix-blend-screen" : "mix-blend-multiply"}`}
+            style={{ filter: isDark ? "grayscale(1) saturate(0) contrast(1.05) brightness(1.18)" : "none" }}
+            initial={{ opacity: 0, scale: 0.82 }}
+            animate={{ opacity: isDark ? 0.14 : 0.24, scale: 1 }}
+            transition={{ duration: 1.05, ease: "easeOut", delay: 0.12 }}
+          />
+          <motion.img
+            src={royalBorderImage}
+            alt=""
+            aria-hidden="true"
+            className={`absolute bottom-4 left-2 md:left-4 w-[10vw] min-w-[72px] max-w-[120px] scale-y-[-1] select-none ${isDark ? "mix-blend-screen" : "mix-blend-multiply"}`}
+            style={{ filter: isDark ? "grayscale(1) saturate(0) contrast(1.05) brightness(1.18)" : "none" }}
+            initial={{ opacity: 0, scale: 0.82 }}
+            animate={{ opacity: isDark ? 0.14 : 0.24, scale: 1 }}
+            transition={{ duration: 1.05, ease: "easeOut", delay: 0.18 }}
+          />
+          <motion.img
+            src={royalBorderImage}
+            alt=""
+            aria-hidden="true"
+            className={`absolute bottom-4 right-2 md:right-4 w-[10vw] min-w-[72px] max-w-[120px] rotate-180 select-none ${isDark ? "mix-blend-screen" : "mix-blend-multiply"}`}
+            style={{ filter: isDark ? "grayscale(1) saturate(0) contrast(1.05) brightness(1.18)" : "none" }}
+            initial={{ opacity: 0, scale: 0.82 }}
+            animate={{ opacity: isDark ? 0.14 : 0.24, scale: 1 }}
+            transition={{ duration: 1.05, ease: "easeOut", delay: 0.24 }}
+          />
+        </motion.div>
 
         {/* Hero content */}
         <motion.div

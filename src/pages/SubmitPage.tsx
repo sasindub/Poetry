@@ -2,12 +2,17 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PublicLayout } from "@/components/PublicLayout";
 import { useLanguage } from "@/hooks/useLanguage";
+
+type SubmitterRole = "poet" | "requester";
+
 export default function SubmitPage() {
   const { t, isRtl } = useLanguage();
   const [success, setSuccess] = useState(false);
   const [refNum, setRefNum] = useState("");
   const [savedDraft, setSavedDraft] = useState(false);
   const [isPending, setIsPending] = useState(false);
+  const [role, setRole] = useState<SubmitterRole>("poet");
+
   const createSubmission = {
     isPending,
     mutateAsync: async (data: any) => {
@@ -63,10 +68,13 @@ export default function SubmitPage() {
   };
 
   const handleSaveDraft = () => {
-    localStorage.setItem("poem_intake_draft", JSON.stringify(form));
+    localStorage.setItem("poem_intake_draft", JSON.stringify({ ...form, role }));
     setSavedDraft(true);
     setTimeout(() => setSavedDraft(false), 2500);
   };
+
+  const inputClass =
+    "w-full bg-background/50 border border-border rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20 transition-all";
 
   if (success) {
     return (
@@ -149,81 +157,192 @@ export default function SubmitPage() {
             transition={{ delay: 0.3 }}
             className="glass-panel rounded-2xl p-8 border border-gold/10"
           >
+            {/* Role Toggle */}
+            <div className="mb-8">
+              <p className="text-xs text-foreground/40 uppercase tracking-widest text-center mb-3">
+                Submitting as
+              </p>
+              <div className="relative flex items-center bg-background/60 border border-border rounded-xl p-1 gap-1">
+                {/* sliding pill */}
+                <motion.div
+                  layout
+                  transition={{ type: "spring", stiffness: 400, damping: 35 }}
+                  className="absolute top-1 bottom-1 rounded-lg gold-gradient shadow-lg shadow-gold/20"
+                  style={{
+                    left: role === "poet" ? "4px" : "calc(50% + 2px)",
+                    width: "calc(50% - 6px)",
+                  }}
+                />
+                {(
+                  [
+                    { value: "poet" as const, label: "I am the Poet", icon: "✦" },
+                    { value: "requester" as const, label: "I am a Requester", icon: "◈" },
+                  ] as const
+                ).map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setRole(opt.value)}
+                    className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-semibold transition-colors duration-200 ${
+                      role === opt.value ? "text-navy" : "text-foreground/50 hover:text-foreground"
+                    }`}
+                  >
+                    <span className="text-base leading-none">{opt.icon}</span>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Role description */}
+              <AnimatePresence mode="wait">
+                <motion.p
+                  key={role}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.18 }}
+                  className="text-xs text-foreground/40 text-center mt-2"
+                >
+                  {role === "poet"
+                    ? "Fill in your own details as the poem's author."
+                    : "You are submitting on behalf of a poet. Your contact details are required."}
+                </motion.p>
+              </AnimatePresence>
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-6" dir={isRtl ? "rtl" : "ltr"}>
               {/* Poet info */}
-              <div>
-                <h3 className="text-sm font-semibold text-gold/70 tracking-wider uppercase mb-4">Poet Information</h3>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  {[
-                    { key: "poetName", label: t("poetName"), type: "text", required: true },
-                    { key: "poetEmail", label: t("poetEmail"), type: "email", required: true },
-                    { key: "poetPhone", label: t("poetPhone"), type: "tel" },
-                  ].map((field) => (
-                    <div key={field.key}>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key="poet-section"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.22 }}
+                >
+                  <h3 className="text-sm font-semibold text-gold/70 tracking-wider uppercase mb-4">
+                    Poet Information
+                  </h3>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    {/* Poet Name — always required */}
+                    <div>
                       <label className="block text-xs text-foreground/50 mb-1.5">
-                        {field.label} {field.required && <span className="text-gold">*</span>}
+                        {t("poetName")} <span className="text-gold">*</span>
                       </label>
                       <input
-                        type={field.type}
-                        value={form[field.key as keyof typeof form]}
-                        onChange={(e) => handleChange(field.key, e.target.value)}
-                        required={field.required}
-                        dir={field.dir}
-                        className="w-full bg-background/50 border border-border rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20 transition-all"
-                        placeholder={field.dir === "rtl" ? "أدخل باللغة العربية" : ""}
+                        type="text"
+                        value={form.poetName}
+                        onChange={(e) => handleChange("poetName", e.target.value)}
+                        required
+                        className={inputClass}
                       />
                     </div>
-                  ))}
-                </div>
-              </div>
 
-              <div className="border-t border-border/50" />
+                    {/* Poet Email — required only for poet role */}
+                    <div>
+                      <label className="block text-xs text-foreground/50 mb-1.5">
+                        {t("poetEmail")}
+                        {role === "poet" && <span className="text-gold"> *</span>}
+                        {role === "requester" && (
+                          <span className="text-foreground/30 text-xs ml-1">(optional)</span>
+                        )}
+                      </label>
+                      <input
+                        type="email"
+                        value={form.poetEmail}
+                        onChange={(e) => handleChange("poetEmail", e.target.value)}
+                        required={role === "poet"}
+                        className={inputClass}
+                      />
+                    </div>
 
-              {/* Requester info */}
-              <div>
-                <h3 className="text-sm font-semibold text-gold/70 tracking-wider uppercase mb-4">Requester Information</h3>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs text-foreground/50 mb-1.5">Requester Name <span className="text-gold">*</span></label>
-                    <input
-                      type="text"
-                      value={form.requesterName}
-                      onChange={(e) => handleChange("requesterName", e.target.value)}
-                      required
-                      className="w-full bg-background/50 border border-border rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20 transition-all"
-                    />
+                    {/* Poet Phone — required only for poet role */}
+                    <div>
+                      <label className="block text-xs text-foreground/50 mb-1.5">
+                        {t("poetPhone")}
+                        {role === "poet" && <span className="text-gold"> *</span>}
+                        {role === "requester" && (
+                          <span className="text-foreground/30 text-xs ml-1">(optional)</span>
+                        )}
+                      </label>
+                      <input
+                        type="tel"
+                        value={form.poetPhone}
+                        onChange={(e) => handleChange("poetPhone", e.target.value)}
+                        required={role === "poet"}
+                        className={inputClass}
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-xs text-foreground/50 mb-1.5">Requester Email <span className="text-gold">*</span></label>
-                    <input
-                      type="email"
-                      value={form.requesterEmail}
-                      onChange={(e) => handleChange("requesterEmail", e.target.value)}
-                      required
-                      className="w-full bg-background/50 border border-border rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20 transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-foreground/50 mb-1.5">Requester Mobile <span className="text-gold">*</span></label>
-                    <input
-                      type="tel"
-                      value={form.requesterMobile}
-                      onChange={(e) => handleChange("requesterMobile", e.target.value)}
-                      required
-                      className="w-full bg-background/50 border border-border rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20 transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-foreground/50 mb-1.5">Relationship to Poet</label>
-                    <input
-                      type="text"
-                      value={form.requesterRelationship}
-                      onChange={(e) => handleChange("requesterRelationship", e.target.value)}
-                      className="w-full bg-background/50 border border-border rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20 transition-all"
-                    />
-                  </div>
-                </div>
-              </div>
+                </motion.div>
+              </AnimatePresence>
+
+              {/* Requester info — only shown for requester role */}
+              <AnimatePresence>
+                {role === "requester" && (
+                  <motion.div
+                    key="requester-section"
+                    initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                    animate={{ opacity: 1, height: "auto", marginTop: 24 }}
+                    exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                    transition={{ duration: 0.28, ease: "easeInOut" }}
+                    style={{ overflow: "hidden" }}
+                  >
+                    <div className="border-t border-border/50 mb-6" />
+                    <h3 className="text-sm font-semibold text-gold/70 tracking-wider uppercase mb-4">
+                      Requester Information
+                    </h3>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs text-foreground/50 mb-1.5">
+                          Requester Name <span className="text-gold">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={form.requesterName}
+                          onChange={(e) => handleChange("requesterName", e.target.value)}
+                          required={role === "requester"}
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-foreground/50 mb-1.5">
+                          Requester Email <span className="text-gold">*</span>
+                        </label>
+                        <input
+                          type="email"
+                          value={form.requesterEmail}
+                          onChange={(e) => handleChange("requesterEmail", e.target.value)}
+                          required={role === "requester"}
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-foreground/50 mb-1.5">
+                          Requester Mobile <span className="text-gold">*</span>
+                        </label>
+                        <input
+                          type="tel"
+                          value={form.requesterMobile}
+                          onChange={(e) => handleChange("requesterMobile", e.target.value)}
+                          required={role === "requester"}
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-foreground/50 mb-1.5">
+                          Relationship to Poet
+                        </label>
+                        <input
+                          type="text"
+                          value={form.requesterRelationship}
+                          onChange={(e) => handleChange("requesterRelationship", e.target.value)}
+                          className={inputClass}
+                        />
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               <div className="border-t border-border/50" />
 
@@ -232,20 +351,24 @@ export default function SubmitPage() {
                 <h3 className="text-sm font-semibold text-gold/70 tracking-wider uppercase mb-4">Poem Details</h3>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs text-foreground/50 mb-1.5">{t("poemTitle")} <span className="text-gold">*</span></label>
+                    <label className="block text-xs text-foreground/50 mb-1.5">
+                      {t("poemTitle")} <span className="text-gold">*</span>
+                    </label>
                     <input
                       type="text"
                       value={form.poemTitle}
                       onChange={(e) => handleChange("poemTitle", e.target.value)}
                       required
-                      className="w-full bg-background/50 border border-border rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20 transition-all"
+                      className={inputClass}
                     />
                   </div>
                   <div />
                 </div>
 
                 <div className="mt-4">
-                  <label className="block text-xs text-foreground/50 mb-1.5">{t("poemType")} <span className="text-gold">*</span></label>
+                  <label className="block text-xs text-foreground/50 mb-1.5">
+                    {t("poemType")} <span className="text-gold">*</span>
+                  </label>
                   <div className="grid grid-cols-2 gap-3">
                     {(["nabati", "standard"] as const).map((type) => (
                       <button
@@ -270,7 +393,7 @@ export default function SubmitPage() {
                     type="text"
                     value={form.openingLine}
                     onChange={(e) => handleChange("openingLine", e.target.value)}
-                    className="w-full bg-background/50 border border-border rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20 transition-all"
+                    className={inputClass}
                   />
                 </div>
 
@@ -302,7 +425,7 @@ export default function SubmitPage() {
                       type="text"
                       value={form.sourceChannel}
                       onChange={(e) => handleChange("sourceChannel", e.target.value)}
-                      className="w-full bg-background/50 border border-border rounded-lg px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20 transition-all"
+                      className={inputClass}
                       placeholder="Website / Email / Referral"
                     />
                   </div>

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PublicLayout } from "@/components/PublicLayout";
 import { useLanguage } from "@/hooks/useLanguage";
+import { PoemFormatSelector, PoemFormat } from "@/components/PoemFormatSelector";
 
 type SubmitterRole = "poet" | "requester";
 
@@ -12,6 +13,7 @@ export default function SubmitPage() {
   const [savedDraft, setSavedDraft] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [role, setRole] = useState<SubmitterRole>("poet");
+  const [poemFormat, setPoemFormat] = useState<PoemFormat | null>(null);
 
   const createSubmission = {
     isPending,
@@ -68,7 +70,7 @@ export default function SubmitPage() {
   };
 
   const handleSaveDraft = () => {
-    localStorage.setItem("poem_intake_draft", JSON.stringify({ ...form, role }));
+    localStorage.setItem("poem_intake_draft", JSON.stringify({ ...form, role, poemFormat }));
     setSavedDraft(true);
     setTimeout(() => setSavedDraft(false), 2500);
   };
@@ -411,6 +413,13 @@ export default function SubmitPage() {
                     placeholder="اكتب قصيدتك هنا..."
                   />
                 </div>
+
+                {/* Format selector + live preview */}
+                <PoemFormatSelector
+                  poemContent={form.poemContent}
+                  selectedFormat={poemFormat}
+                  onSelectFormat={setPoemFormat}
+                />
               </div>
 
               <div className="border-t border-border/50" />

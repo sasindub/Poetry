@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 export type PoemFormat = "classical" | "muwashah" | "zajal" | "prose-poem";
 
-interface FormatMeta {
+export interface FormatMeta {
   id: PoemFormat;
   nameAr: string;
   nameEn: string;
@@ -14,11 +14,11 @@ interface FormatMeta {
   transformLines: (lines: string[]) => React.ReactNode;
 }
 
-const FORMATS: FormatMeta[] = [
+export const FORMATS: FormatMeta[] = [
   {
     id: "classical",
-    nameAr: "القصيدة العمودية",
-    nameEn: "Classical Qasida",
+    nameAr: "العمودية",
+    nameEn: "Classical",
     descAr: "شطران متوازيان مع قافية موحّدة",
     descEn: "Two-hemistich lines with unified rhyme",
     icon: "⟨⟩",
@@ -27,7 +27,7 @@ const FORMATS: FormatMeta[] = [
       lines.filter(Boolean).map((line, i) => {
         const mid = Math.floor(line.length / 2);
         const a = line.slice(0, mid).trim() || line;
-        const b = line.slice(mid).trim() || " ";
+        const b = line.slice(mid).trim() || " ";
         return (
           <div key={i} className="grid grid-cols-2 gap-6 text-center py-1.5">
             <span className="border-r border-gold/20 pr-4">{a}</span>
@@ -99,8 +99,8 @@ const FORMATS: FormatMeta[] = [
   },
   {
     id: "prose-poem",
-    nameAr: "قصيدة النثر",
-    nameEn: "Prose Poem",
+    nameAr: "النثر",
+    nameEn: "Prose",
     descAr: "كتابة شعرية حرّة بلا وزن أو قافية مقيّدة",
     descEn: "Free-form poetic prose without fixed meter",
     icon: "〜",
@@ -117,276 +117,264 @@ const FORMATS: FormatMeta[] = [
   },
 ];
 
-interface Props {
-  poemContent: string;
+/* ─── Compact toolbar (above textarea, MS-Word style) ─── */
+interface ToolbarProps {
   selectedFormat: PoemFormat | null;
   onSelectFormat: (f: PoemFormat) => void;
 }
 
-export function PoemFormatSelector({ poemContent, selectedFormat, onSelectFormat }: Props) {
-  const [hoveredFormat, setHoveredFormat] = useState<PoemFormat | null>(null);
-
-  const lines = poemContent.split("\n");
-  const hasContent = poemContent.trim().length > 0;
-
-  const activeMeta = hoveredFormat
-    ? FORMATS.find((f) => f.id === hoveredFormat)!
-    : selectedFormat
-    ? FORMATS.find((f) => f.id === selectedFormat)!
-    : null;
-
-  const selectedMeta = selectedFormat ? FORMATS.find((f) => f.id === selectedFormat)! : null;
+export function PoemFormatToolbar({ selectedFormat, onSelectFormat }: ToolbarProps) {
+  const [hovered, setHovered] = useState<PoemFormat | null>(null);
+  const tipFmt = hovered ? FORMATS.find((f) => f.id === hovered)! : null;
 
   return (
-    <div className="mt-6 space-y-4">
-      {/* Divider header */}
-      <div className="flex items-center gap-3">
-        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gold/25 to-transparent" />
-        <span className="text-[11px] font-semibold tracking-[0.22em] uppercase text-gold/55 select-none">
-          Poem Format
+    <div className="mb-2">
+      {/* Pills row */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="text-[10px] text-foreground/30 tracking-widest uppercase mr-1 shrink-0">
+          Format
         </span>
-        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gold/25 to-transparent" />
-      </div>
-
-      {/* Format picker cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {FORMATS.map((fmt) => {
-          const isSelected = selectedFormat === fmt.id;
+          const active = selectedFormat === fmt.id;
           return (
             <motion.button
               key={fmt.id}
               type="button"
               onClick={() => onSelectFormat(fmt.id)}
-              onHoverStart={() => setHoveredFormat(fmt.id)}
-              onHoverEnd={() => setHoveredFormat(null)}
-              whileHover={{ y: -3, scale: 1.025 }}
-              whileTap={{ scale: 0.96 }}
-              className="relative flex flex-col items-center gap-2.5 p-4 rounded-2xl border cursor-pointer text-center outline-none focus-visible:ring-2"
+              onHoverStart={() => setHovered(fmt.id)}
+              onHoverEnd={() => setHovered(null)}
+              whileHover={{ y: -1 }}
+              whileTap={{ scale: 0.94 }}
+              className="relative flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all select-none"
               style={{
-                background: isSelected
-                  ? `${fmt.accentColor}12`
-                  : "rgba(255,255,255,0.025)",
-                borderColor: isSelected ? `${fmt.accentColor}55` : "rgba(255,255,255,0.08)",
-                boxShadow: isSelected ? `0 4px 24px ${fmt.accentColor}18` : "none",
-                transition: "background 0.2s, border-color 0.2s, box-shadow 0.2s",
+                background: active ? `${fmt.accentColor}18` : "rgba(255,255,255,0.04)",
+                border: `1px solid ${active ? fmt.accentColor + "55" : "rgba(255,255,255,0.08)"}`,
+                color: active ? fmt.accentColor : "rgba(255,255,255,0.42)",
+                boxShadow: active ? `0 0 10px ${fmt.accentColor}22` : "none",
               }}
             >
-              {/* Glow blob */}
-              <AnimatePresence>
-                {isSelected && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.6 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.6 }}
-                    className="absolute inset-0 rounded-2xl pointer-events-none"
-                    style={{
-                      background: `radial-gradient(ellipse at 50% 0%, ${fmt.accentColor}18 0%, transparent 70%)`,
-                    }}
-                  />
-                )}
-              </AnimatePresence>
-
-              {/* Icon box */}
-              <motion.div
-                animate={{ scale: isSelected ? 1.12 : 1 }}
-                transition={{ type: "spring", stiffness: 380, damping: 22 }}
-                className="relative z-10 w-11 h-11 rounded-xl flex items-center justify-center text-xl font-bold"
-                style={{
-                  background: isSelected
-                    ? `linear-gradient(135deg, ${fmt.accentColor}28, ${fmt.accentColor}12)`
-                    : "rgba(255,255,255,0.04)",
-                  border: `1.5px solid ${isSelected ? fmt.accentColor + "55" : "rgba(255,255,255,0.07)"}`,
-                  color: isSelected ? fmt.accentColor : "rgba(255,255,255,0.4)",
-                  boxShadow: isSelected ? `0 0 16px ${fmt.accentColor}35` : "none",
-                  transition: "background 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s",
-                }}
-              >
-                {fmt.icon}
-              </motion.div>
-
-              {/* Text */}
-              <div className="relative z-10 space-y-0.5">
-                <div
-                  className="text-[13px] font-arabic font-bold leading-snug"
-                  style={{
-                    color: isSelected ? fmt.accentColor : "rgba(255,255,255,0.65)",
-                    transition: "color 0.2s",
-                  }}
-                  dir="rtl"
-                >
-                  {fmt.nameAr}
-                </div>
-                <div
-                  className="text-[10px] leading-snug"
-                  style={{
-                    color: isSelected ? `${fmt.accentColor}99` : "rgba(255,255,255,0.28)",
-                    transition: "color 0.2s",
-                  }}
-                >
-                  {fmt.nameEn}
-                </div>
-              </div>
-
-              {/* Check badge */}
-              <AnimatePresence>
-                {isSelected && (
-                  <motion.div
-                    initial={{ scale: 0, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0, opacity: 0 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                    className="absolute top-2 right-2 w-4 h-4 rounded-full flex items-center justify-center"
-                    style={{ background: fmt.accentColor }}
-                  >
-                    <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                      <path d="M1.5 4l1.8 1.8 3.2-3.6" stroke="#0A1628" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <span className="text-[13px] leading-none">{fmt.icon}</span>
+              <span className="font-arabic" dir="rtl">{fmt.nameAr}</span>
+              {active && (
+                <motion.span
+                  layoutId="toolbar-active-dot"
+                  className="w-1 h-1 rounded-full ml-0.5"
+                  style={{ background: fmt.accentColor }}
+                />
+              )}
             </motion.button>
           );
         })}
       </div>
 
-      {/* Format description tooltip */}
+      {/* Inline tooltip */}
       <AnimatePresence mode="wait">
-        {activeMeta && (
+        {tipFmt && (
           <motion.div
-            key={activeMeta.id}
-            initial={{ opacity: 0, y: 5 }}
+            key={tipFmt.id}
+            initial={{ opacity: 0, y: 3 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.15 }}
-            className="flex items-center gap-3 px-4 py-2.5 rounded-xl"
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.12 }}
+            className="mt-1.5 flex items-center gap-2 px-2.5 py-1 rounded-lg w-fit"
             style={{
-              background: `${activeMeta.accentColor}0A`,
-              border: `1px solid ${activeMeta.accentColor}25`,
+              background: `${tipFmt.accentColor}0C`,
+              border: `1px solid ${tipFmt.accentColor}22`,
             }}
           >
-            <span className="text-base shrink-0" style={{ color: activeMeta.accentColor }}>
-              {activeMeta.icon}
+            <span className="text-xs" style={{ color: tipFmt.accentColor }}>{tipFmt.icon}</span>
+            <span className="text-[10px] font-arabic" style={{ color: tipFmt.accentColor }} dir="rtl">
+              {tipFmt.descAr}
             </span>
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
-              <span className="text-xs font-arabic" style={{ color: activeMeta.accentColor }} dir="rtl">
-                {activeMeta.descAr}
-              </span>
-              <span className="text-foreground/20 text-xs">·</span>
-              <span className="text-xs text-foreground/38">{activeMeta.descEn}</span>
-            </div>
+            <span className="text-[10px] text-foreground/30 hidden sm:inline">· {tipFmt.descEn}</span>
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
 
-      {/* Live preview */}
-      <AnimatePresence>
-        {selectedMeta && (
-          <motion.div
-            key={selectedMeta.id}
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 6 }}
-            transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
-          >
-            {/* Preview header row */}
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div
-                  className="w-1 h-5 rounded-full"
-                  style={{
-                    background: `linear-gradient(to bottom, ${selectedMeta.accentColor}, ${selectedMeta.accentColor}44)`,
-                  }}
-                />
-                <span className="text-[11px] font-semibold tracking-widest uppercase text-foreground/45">
-                  Live Preview
-                </span>
-              </div>
-              <span
-                className="text-[11px] font-arabic px-2.5 py-1 rounded-full border"
-                style={{
-                  color: selectedMeta.accentColor,
-                  borderColor: `${selectedMeta.accentColor}30`,
-                  background: `${selectedMeta.accentColor}0E`,
-                }}
-                dir="rtl"
-              >
-                {selectedMeta.nameAr}
-              </span>
-            </div>
+/* ─── Standalone preview panel ─── */
+interface PreviewProps {
+  poemContent: string;
+  poemTitle?: string;
+  selectedFormat: PoemFormat | null;
+}
 
-            {/* Preview card */}
-            <div
-              className="relative rounded-2xl overflow-hidden"
+export function PoemFormatPreview({ poemContent, poemTitle, selectedFormat }: PreviewProps) {
+  const meta = selectedFormat ? FORMATS.find((f) => f.id === selectedFormat)! : null;
+  const lines = poemContent.split("\n");
+  const hasContent = poemContent.trim().length > 0;
+
+  return (
+    <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      {/* Header row */}
+      <div className="flex items-center justify-between mb-2" style={{ flexShrink: 0 }}>
+        <div className="flex items-center gap-2">
+          <div
+            className="w-0.5 h-4 rounded-full transition-all duration-300"
+            style={{
+              background: meta
+                ? `linear-gradient(to bottom, ${meta.accentColor}, ${meta.accentColor}44)`
+                : "rgba(255,255,255,0.1)",
+            }}
+          />
+          <span className="text-[10px] font-semibold tracking-widest uppercase text-foreground/40">
+            Live Preview
+          </span>
+        </div>
+        <AnimatePresence mode="wait">
+          {meta && (
+            <motion.span
+              key={meta.id}
+              initial={{ opacity: 0, x: 6 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -4 }}
+              transition={{ duration: 0.15 }}
+              className="text-[10px] font-arabic px-2 py-0.5 rounded-full border"
               style={{
-                background: "rgba(8,18,32,0.72)",
-                border: `1px solid ${selectedMeta.accentColor}20`,
-                boxShadow: `0 0 0 1px ${selectedMeta.accentColor}08, 0 12px 40px rgba(0,0,0,0.35)`,
+                color: meta.accentColor,
+                borderColor: `${meta.accentColor}30`,
+                background: `${meta.accentColor}0E`,
               }}
+              dir="rtl"
             >
-              {/* Top shimmer bar */}
+              {meta.nameAr}
+            </motion.span>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Panel */}
+      <div
+        className="relative rounded-xl flex flex-col"
+        style={{
+          flex: "1 1 0",
+          minHeight: 0,
+          overflow: "hidden",
+          background: "rgba(8,18,32,0.65)",
+          border: `1px solid ${meta ? meta.accentColor + "20" : "rgba(255,255,255,0.06)"}`,
+          boxShadow: meta
+            ? `0 0 0 1px ${meta.accentColor}06, 0 8px 32px rgba(0,0,0,0.3)`
+            : "0 8px 32px rgba(0,0,0,0.2)",
+          transition: "border-color 0.3s, box-shadow 0.3s",
+        }}
+      >
+        {/* Top shimmer */}
+        <div
+          className="h-px w-full shrink-0 transition-all duration-500"
+          style={{
+            background: meta
+              ? `linear-gradient(to right, transparent, ${meta.accentColor}70, transparent)`
+              : "transparent",
+          }}
+        />
+
+        {/* Poem title inside preview */}
+        <AnimatePresence>
+          {poemTitle && (
+            <motion.div
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.2 }}
+              className="shrink-0 px-5 pt-4 pb-3 border-b flex flex-col items-center gap-1"
+              style={{ borderColor: meta ? `${meta.accentColor}18` : "rgba(255,255,255,0.06)" }}
+              dir="rtl"
+            >
+              <span
+                className="text-base font-arabic font-bold leading-snug text-center"
+                style={{ color: meta ? meta.accentColor : "rgba(200,169,110,0.7)" }}
+              >
+                {poemTitle}
+              </span>
               <div
-                className="h-px w-full"
+                className="w-10 h-px"
                 style={{
-                  background: `linear-gradient(to right, transparent 0%, ${selectedMeta.accentColor}70 50%, transparent 100%)`,
+                  background: meta
+                    ? `linear-gradient(to right, transparent, ${meta.accentColor}60, transparent)`
+                    : "rgba(200,169,110,0.25)",
                 }}
               />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-              {/* Watermark ornaments */}
-              <div
-                className="absolute top-3 left-4 text-xl opacity-[0.07] select-none pointer-events-none font-arabic"
-                style={{ color: selectedMeta.accentColor }}
+        {/* Watermarks */}
+        <div
+          className="absolute top-3 left-3 text-lg opacity-[0.06] select-none pointer-events-none font-arabic"
+          style={{ color: meta?.accentColor ?? "#C8A96E" }}
+        >
+          ﷽
+        </div>
+        <div
+          className="absolute bottom-3 right-3 text-xs opacity-[0.06] select-none pointer-events-none"
+          style={{ color: meta?.accentColor ?? "#C8A96E" }}
+        >
+          ✦
+        </div>
+
+        {/* Scrollable content */}
+        <div className="relative z-10 flex-1 overflow-y-auto px-5 py-5" dir="rtl">
+          <AnimatePresence mode="wait">
+            {!meta ? (
+              <motion.div
+                key="no-format"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex flex-col items-center justify-center h-full min-h-[140px] gap-2 text-center"
               >
-                ﷽
-              </div>
-              <div
-                className="absolute bottom-3 right-4 text-sm opacity-[0.07] select-none pointer-events-none"
-                style={{ color: selectedMeta.accentColor }}
+                <span className="text-3xl opacity-10 select-none">◈</span>
+                <p className="text-[10px] text-foreground/25 font-arabic" dir="rtl">
+                  اختر تنسيقاً لترى المعاينة
+                </p>
+                <p className="text-[9px] text-foreground/18">Select a format above to preview</p>
+              </motion.div>
+            ) : !hasContent ? (
+              <motion.div
+                key="no-content"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex flex-col items-center justify-center h-full min-h-[140px] gap-2 text-center"
               >
-                ✦
-              </div>
+                <span
+                  className="text-3xl opacity-15 select-none"
+                  style={{ color: meta.accentColor }}
+                >
+                  {meta.icon}
+                </span>
+                <p className="text-[10px] text-foreground/28 font-arabic" dir="rtl">
+                  اكتب القصيدة لترى المعاينة هنا
+                </p>
+                <p className="text-[9px] text-foreground/18">Type your poem to see a live preview</p>
+              </motion.div>
+            ) : (
+              <motion.div
+                key={selectedFormat + "|" + poemContent}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.25 }}
+                className="font-arabic text-foreground/88 leading-loose"
+                style={{ fontSize: "0.97rem" }}
+              >
+                {meta.transformLines(lines)}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
-              {/* Content area */}
-              <div className="relative z-10 px-7 py-7 h-64 overflow-y-auto" dir="rtl">
-                {hasContent ? (
-                  <motion.div
-                    key={selectedFormat + "|" + poemContent}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.28 }}
-                    className="font-arabic text-foreground/88 leading-loose"
-                    style={{ fontSize: "1.02rem" }}
-                  >
-                    {selectedMeta.transformLines(lines)}
-                  </motion.div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
-                    <span
-                      className="text-4xl opacity-15 font-arabic select-none"
-                      style={{ color: selectedMeta.accentColor }}
-                    >
-                      {selectedMeta.icon}
-                    </span>
-                    <p className="text-xs text-foreground/28 font-arabic" dir="rtl">
-                      اكتب القصيدة أعلاه لترى المعاينة هنا
-                    </p>
-                    <p className="text-[10px] text-foreground/18">
-                      Type your poem above to see a live preview
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Bottom shimmer bar */}
-              <div
-                className="h-px w-full"
-                style={{
-                  background: `linear-gradient(to right, transparent 0%, ${selectedMeta.accentColor}35 50%, transparent 100%)`,
-                }}
-              />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        {/* Bottom shimmer */}
+        <div
+          className="h-px w-full shrink-0 transition-all duration-500"
+          style={{
+            background: meta
+              ? `linear-gradient(to right, transparent, ${meta.accentColor}35, transparent)`
+              : "transparent",
+          }}
+        />
+      </div>
     </div>
   );
 }

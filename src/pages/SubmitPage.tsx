@@ -38,18 +38,20 @@ export default function SubmitPage() {
     poetEmail: "",
     poetPhone: "",
     poetNationality: "",
+    poetNationalityOther: "",
     poetIdFile: "",
     requesterName: "",
     requesterEmail: "",
     requesterMobile: "",
     requesterRelationship: "",
     requesterNationality: "",
+    requesterNationalityOther: "",
     requesterIdFile: "",
     sourceChannel: "",
     poemTitle: "",
     openingLine: "",
     poemContent: "",
-    poemType: "" as "nabati" | "standard" | "",
+    poemType: "" as "nabati" | "standard" | "both" | "",
     attachmentName: "",
   });
 
@@ -117,7 +119,7 @@ export default function SubmitPage() {
             <div className="text-5xl font-arabic text-gold/60 mb-4" dir="rtl">مبروك</div>
             <p className="text-foreground/60 mb-6">{t("successMessage")}</p>
             <div className="bg-gold/10 border border-gold/20 rounded-lg p-4 mb-6">
-              <p className="text-xs text-foreground/50 mb-1">Request ID</p>
+              <p className="text-xs text-foreground/50 mb-1">{t("requestId")}</p>
               <p className="text-xl font-mono font-bold text-gold">{refNum}</p>
             </div>
             <motion.a
@@ -125,7 +127,7 @@ export default function SubmitPage() {
               whileHover={{ scale: 1.02 }}
               className="inline-flex items-center gap-2 px-8 py-3 rounded-xl gold-gradient text-navy font-bold hover:opacity-90 transition-all"
             >
-              Back to Home
+              {t("backToHome")}
             </motion.a>
           </motion.div>
         </div>
@@ -178,7 +180,7 @@ export default function SubmitPage() {
             {/* Role Toggle */}
             <div className="mb-8 max-w-lg mx-auto">
               <p className="text-xs text-foreground/40 uppercase tracking-widest text-center mb-3">
-                Submitting as
+                {t("submittingAs")}
               </p>
               <div className="relative flex items-center bg-background/60 border border-border rounded-xl p-1 gap-1">
                 <motion.div
@@ -191,8 +193,8 @@ export default function SubmitPage() {
                   }}
                 />
                 {([
-                  { value: "poet" as const, label: "I am the Poet", icon: "✦" },
-                  { value: "requester" as const, label: "I am a Requester", icon: "◈" },
+                  { value: "poet" as const, labelKey: "iAmPoet" as const, icon: "✦" },
+                  { value: "requester" as const, labelKey: "iAmRequester" as const, icon: "◈" },
                 ] as const).map((opt) => (
                   <button
                     key={opt.value}
@@ -203,7 +205,7 @@ export default function SubmitPage() {
                     }`}
                   >
                     <span className="text-base leading-none">{opt.icon}</span>
-                    {opt.label}
+                    {t(opt.labelKey)}
                   </button>
                 ))}
               </div>
@@ -216,9 +218,7 @@ export default function SubmitPage() {
                   transition={{ duration: 0.18 }}
                   className="text-xs text-foreground/40 text-center mt-2"
                 >
-                  {role === "poet"
-                    ? "Fill in your own details as the poem's author."
-                    : "You are submitting on behalf of a poet. Your contact details are required."}
+                  {role === "poet" ? t("poetRoleDesc") : t("requesterRoleDesc")}
                 </motion.p>
               </AnimatePresence>
             </div>
@@ -228,7 +228,7 @@ export default function SubmitPage() {
               {/* ── Poet Information ── */}
               <div>
                 <h3 className="text-sm font-semibold text-gold/70 tracking-wider uppercase mb-4">
-                  Poet Information
+                  {t("poetInformation")}
                 </h3>
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
@@ -247,7 +247,7 @@ export default function SubmitPage() {
                     <label className="block text-xs text-foreground/50 mb-1.5">
                       {t("poetEmail")}
                       {role === "poet" && <span className="text-gold"> *</span>}
-                      {role === "requester" && <span className="text-foreground/30 text-xs ml-1">(optional)</span>}
+                      {role === "requester" && <span className="text-foreground/30 text-xs ml-1">({t("optional")})</span>}
                     </label>
                     <input
                       type="email"
@@ -261,7 +261,7 @@ export default function SubmitPage() {
                     <label className="block text-xs text-foreground/50 mb-1.5">
                       {t("poetPhone")}
                       {role === "poet" && <span className="text-gold"> *</span>}
-                      {role === "requester" && <span className="text-foreground/30 text-xs ml-1">(optional)</span>}
+                      {role === "requester" && <span className="text-foreground/30 text-xs ml-1">({t("optional")})</span>}
                     </label>
                     <input
                       type="tel"
@@ -278,9 +278,9 @@ export default function SubmitPage() {
                   {/* Nationality dropdown */}
                   <div>
                     <label className="block text-xs text-foreground/50 mb-1.5">
-                      Nationality
+                      {t("nationality")}
                       {role === "poet" && <span className="text-gold"> *</span>}
-                      {role === "requester" && <span className="text-foreground/30 text-xs ml-1">(optional)</span>}
+                      {role === "requester" && <span className="text-foreground/30 text-xs ml-1">({t("optional")})</span>}
                     </label>
                     <div className="relative">
                       <select
@@ -289,27 +289,44 @@ export default function SubmitPage() {
                         required={role === "poet"}
                         className={selectClass}
                       >
-                        <option value="" disabled>Select nationality…</option>
+                        <option value="" disabled>{t("selectNationality")}</option>
                         {UAE_NATIONALITIES.map((n) => (
                           <option key={n} value={n}>{n}</option>
                         ))}
                       </select>
-                      {/* chevron */}
-                      <svg
-                        className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/30 pointer-events-none"
-                        fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                      >
+                      <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/30 pointer-events-none"
+                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </div>
+                    <AnimatePresence>
+                      {form.poetNationality === "Other" && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                          animate={{ opacity: 1, height: "auto", marginTop: 8 }}
+                          exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                          transition={{ duration: 0.2, ease: "easeInOut" }}
+                          style={{ overflow: "hidden" }}
+                        >
+                          <input
+                            type="text"
+                            value={form.poetNationalityOther}
+                            onChange={(e) => handleChange("poetNationalityOther", e.target.value)}
+                            required={role === "poet"}
+                            placeholder={t("specifyNationality")}
+                            className={inputClass}
+                          />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
 
                   {/* Emirates ID / Passport upload */}
                   <div>
                     <label className="block text-xs text-foreground/50 mb-1.5">
-                      Emirates ID or Passport
+                      {t("emiratesIdOrPassport")}
                       {role === "poet" && <span className="text-gold"> *</span>}
-                      {role === "requester" && <span className="text-foreground/30 text-xs ml-1">(optional)</span>}
+                      {role === "requester" && <span className="text-foreground/30 text-xs ml-1">({t("optional")})</span>}
                     </label>
                     <label
                       className="flex items-center gap-3 w-full bg-background/50 border border-border rounded-lg px-4 py-2.5 cursor-pointer hover:border-gold/40 transition-all group"
@@ -329,7 +346,7 @@ export default function SubmitPage() {
                         </svg>
                       </span>
                       <span className="text-xs text-foreground/40 group-hover:text-foreground/60 transition-colors flex-1 truncate">
-                        {form.poetIdFile ? form.poetIdFile : "Upload ID / Passport (PDF, JPG, PNG)"}
+                        {form.poetIdFile ? form.poetIdFile : t("uploadIdPassport")}
                       </span>
                       {form.poetIdFile && (
                         <svg className="w-3.5 h-3.5 text-gold/60 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -360,12 +377,12 @@ export default function SubmitPage() {
                   >
                     <div className="border-t border-border/50 mb-6" />
                     <h3 className="text-sm font-semibold text-gold/70 tracking-wider uppercase mb-4">
-                      Requester Information
+                      {t("requesterInformation")}
                     </h3>
                     <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-xs text-foreground/50 mb-1.5">
-                          Requester Name <span className="text-gold">*</span>
+                          {t("requesterName")} <span className="text-gold">*</span>
                         </label>
                         <input type="text" value={form.requesterName}
                           onChange={(e) => handleChange("requesterName", e.target.value)}
@@ -373,7 +390,7 @@ export default function SubmitPage() {
                       </div>
                       <div>
                         <label className="block text-xs text-foreground/50 mb-1.5">
-                          Requester Email <span className="text-gold">*</span>
+                          {t("requesterEmail")} <span className="text-gold">*</span>
                         </label>
                         <input type="email" value={form.requesterEmail}
                           onChange={(e) => handleChange("requesterEmail", e.target.value)}
@@ -381,14 +398,14 @@ export default function SubmitPage() {
                       </div>
                       <div>
                         <label className="block text-xs text-foreground/50 mb-1.5">
-                          Requester Mobile <span className="text-gold">*</span>
+                          {t("requesterMobile")} <span className="text-gold">*</span>
                         </label>
                         <input type="tel" value={form.requesterMobile}
                           onChange={(e) => handleChange("requesterMobile", e.target.value)}
                           required={role === "requester"} className={inputClass} />
                       </div>
                       <div>
-                        <label className="block text-xs text-foreground/50 mb-1.5">Relationship to Poet</label>
+                        <label className="block text-xs text-foreground/50 mb-1.5">{t("relationshipToPoet")}</label>
                         <input type="text" value={form.requesterRelationship}
                           onChange={(e) => handleChange("requesterRelationship", e.target.value)}
                           className={inputClass} />
@@ -399,7 +416,7 @@ export default function SubmitPage() {
                     <div className="grid sm:grid-cols-2 gap-4 mt-4">
                       <div>
                         <label className="block text-xs text-foreground/50 mb-1.5">
-                          Nationality <span className="text-gold">*</span>
+                          {t("nationality")} <span className="text-gold">*</span>
                         </label>
                         <div className="relative">
                           <select
@@ -408,7 +425,7 @@ export default function SubmitPage() {
                             required={role === "requester"}
                             className={selectClass}
                           >
-                            <option value="" disabled>Select nationality…</option>
+                            <option value="" disabled>{t("selectNationality")}</option>
                             {UAE_NATIONALITIES.map((n) => (
                               <option key={n} value={n}>{n}</option>
                             ))}
@@ -418,10 +435,30 @@ export default function SubmitPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                           </svg>
                         </div>
+                        <AnimatePresence>
+                          {form.requesterNationality === "Other" && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                              animate={{ opacity: 1, height: "auto", marginTop: 8 }}
+                              exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                              transition={{ duration: 0.2, ease: "easeInOut" }}
+                              style={{ overflow: "hidden" }}
+                            >
+                              <input
+                                type="text"
+                                value={form.requesterNationalityOther}
+                                onChange={(e) => handleChange("requesterNationalityOther", e.target.value)}
+                                required={role === "requester"}
+                                placeholder={t("specifyNationality")}
+                                className={inputClass}
+                              />
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
                       <div>
                         <label className="block text-xs text-foreground/50 mb-1.5">
-                          Emirates ID or Passport <span className="text-gold">*</span>
+                          {t("emiratesIdOrPassport")} <span className="text-gold">*</span>
                         </label>
                         <label
                           className="flex items-center gap-3 w-full bg-background/50 border border-border rounded-lg px-4 py-2.5 cursor-pointer hover:border-gold/40 transition-all group"
@@ -438,7 +475,7 @@ export default function SubmitPage() {
                             </svg>
                           </span>
                           <span className="text-xs text-foreground/40 group-hover:text-foreground/60 transition-colors flex-1 truncate">
-                            {form.requesterIdFile ? form.requesterIdFile : "Upload ID / Passport (PDF, JPG, PNG)"}
+                            {form.requesterIdFile ? form.requesterIdFile : t("uploadIdPassport")}
                           </span>
                           {form.requesterIdFile && (
                             <svg className="w-3.5 h-3.5 text-gold/60 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -459,7 +496,7 @@ export default function SubmitPage() {
               {/* ── Poem Details ── */}
               <div>
                 <h3 className="text-sm font-semibold text-gold/70 tracking-wider uppercase mb-4">
-                  Poem Details
+                  {t("poemDetails")}
                 </h3>
 
                 {/* Title + Type row */}
@@ -476,8 +513,8 @@ export default function SubmitPage() {
                     <label className="block text-xs text-foreground/50 mb-1.5">
                       {t("poemType")} <span className="text-gold">*</span>
                     </label>
-                    <div className="grid grid-cols-2 gap-2 h-[42px]">
-                      {(["nabati", "standard"] as const).map((type) => (
+                    <div className="grid grid-cols-3 gap-2 h-[42px]">
+                      {(["nabati", "standard", "both"] as const).map((type) => (
                         <button key={type} type="button"
                           onClick={() => handleChange("poemType", type)}
                           className={`rounded-lg border text-sm font-medium transition-all ${
@@ -486,7 +523,7 @@ export default function SubmitPage() {
                               : "border-border text-foreground/50 hover:border-gold/30 hover:text-foreground"
                           }`}
                         >
-                          {type === "nabati" ? "Nabati" : "Standard"}
+                          {type === "nabati" ? t("nabatiType") : type === "standard" ? t("standardType") : t("bothType")}
                         </button>
                       ))}
                     </div>
@@ -494,7 +531,7 @@ export default function SubmitPage() {
                 </div>
 
                 <div className="mb-4">
-                  <label className="block text-xs text-foreground/50 mb-1.5">Opening Line</label>
+                  <label className="block text-xs text-foreground/50 mb-1.5">{t("openingLine")}</label>
                   <input type="text" value={form.openingLine}
                     onChange={(e) => handleChange("openingLine", e.target.value)}
                     className={inputClass} />
@@ -526,7 +563,7 @@ export default function SubmitPage() {
                         )}
                       </AnimatePresence>
                       <label className="text-xs font-semibold tracking-widest uppercase text-foreground/50">
-                        Live Preview
+                        {t("livePreview")}
                       </label>
                     </div>
                     <AnimatePresence mode="wait">
@@ -582,22 +619,22 @@ export default function SubmitPage() {
               {/* ── Metadata ── */}
               <div>
                 <h3 className="text-sm font-semibold text-gold/70 tracking-wider uppercase mb-4">
-                  Metadata
+                  {t("metadata")}
                 </h3>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs text-foreground/50 mb-1.5">Source Channel</label>
+                    <label className="block text-xs text-foreground/50 mb-1.5">{t("sourceChannel")}</label>
                     <input type="text" value={form.sourceChannel}
                       onChange={(e) => handleChange("sourceChannel", e.target.value)}
-                      className={inputClass} placeholder="Website / Email / Referral" />
+                      className={inputClass} placeholder={t("sourceChannelPlaceholder")} />
                   </div>
                   <div>
-                    <label className="block text-xs text-foreground/50 mb-1.5">Attachment (simulated)</label>
+                    <label className="block text-xs text-foreground/50 mb-1.5">{t("attachment")}</label>
                     <input type="file"
                       onChange={(e) => handleChange("attachmentName", e.target.files?.[0]?.name || "")}
                       className="w-full bg-background/50 border border-border rounded-lg px-4 py-2.5 text-sm text-foreground file:mr-3 file:px-3 file:py-1 file:rounded-md file:border-0 file:bg-gold/15 file:text-gold" />
                     {form.attachmentName && (
-                      <p className="text-xs text-foreground/50 mt-1">Selected: {form.attachmentName}</p>
+                      <p className="text-xs text-foreground/50 mt-1">{t("selectedFile")} {form.attachmentName}</p>
                     )}
                   </div>
                 </div>
@@ -611,7 +648,7 @@ export default function SubmitPage() {
                     exit={{ opacity: 0 }}
                     className="rounded-lg border border-gold/30 bg-gold/10 px-4 py-2 text-sm text-gold"
                   >
-                    Draft saved successfully.
+                    {t("draftSaved")}
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -620,13 +657,13 @@ export default function SubmitPage() {
                 <motion.button type="button" onClick={handleSaveDraft}
                   whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
                   className="w-full py-3 rounded-xl border border-gold/30 text-gold font-semibold text-sm hover:bg-gold/10 transition-all">
-                  Save as Draft
+                  {t("saveDraft")}
                 </motion.button>
                 <motion.button type="submit"
                   disabled={createSubmission.isPending || !form.poemType}
                   whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
                   className="w-full py-3 rounded-xl gold-gradient text-navy font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-gold/20">
-                  {createSubmission.isPending ? t("submitting") : "Save"}
+                  {createSubmission.isPending ? t("submitting") : t("save")}
                 </motion.button>
               </div>
             </form>

@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-export type PoemFormat = "classical" | "muwashah" | "zajal" | "prose-poem";
+export type PoemFormat =
+  | "nabati"
+  | "amudi"
+  | "lazma"
+  | "wanna"
+  | "taf3ila";
 
 export interface FormatMeta {
   id: PoemFormat;
@@ -15,104 +20,217 @@ export interface FormatMeta {
 }
 
 export const FORMATS: FormatMeta[] = [
+  /* ── 1. النبطي ── Image 1 & 5
+     Full-width single lines, right-aligned, no split.
+     Consistent end-rhyme running through all lines.
+     Colloquial Gulf Arabic dialect.                          */
   {
-    id: "classical",
-    nameAr: "العمودية",
-    nameEn: "Classical",
-    descAr: "شطران متوازيان مع قافية موحّدة",
-    descEn: "Two-hemistich lines with unified rhyme",
-    icon: "⟨⟩",
+    id: "nabati",
+    nameAr: "النبطي",
+    nameEn: "Nabati",
+    descAr: "أبيات كاملة على سطر واحد بقافية موحّدة",
+    descEn: "Full-width single lines with unified end-rhyme",
+    icon: "◆",
     accentColor: "#C8A96E",
-    transformLines: (lines) =>
-      lines.filter(Boolean).map((line, i) => {
-        const mid = Math.floor(line.length / 2);
-        const a = line.slice(0, mid).trim() || line;
-        const b = line.slice(mid).trim() || " ";
-        return (
-          <div key={i} className="grid grid-cols-2 gap-6 text-center py-1.5">
-            <span className="border-r border-gold/20 pr-4">{a}</span>
-            <span className="pl-4">{b}</span>
-          </div>
-        );
-      }),
-  },
-  {
-    id: "muwashah",
-    nameAr: "الموشّح",
-    nameEn: "Muwashah",
-    descAr: "أبيات مقطّعة متعددة الأعجاز والأقفال",
-    descEn: "Stanzas with alternating verses and refrains",
-    icon: "❖",
-    accentColor: "#7CB9A8",
     transformLines: (lines) => {
       const nonEmpty = lines.filter(Boolean);
-      const stanzas: string[][] = [];
-      for (let i = 0; i < nonEmpty.length; i += 3) stanzas.push(nonEmpty.slice(i, i + 3));
-      if (stanzas.length === 0) return null;
-      return stanzas.map((stanza, si) => (
+      if (nonEmpty.length === 0) return null;
+      return nonEmpty.map((line, i) => (
         <div
-          key={si}
-          className="mb-4 rounded-xl p-4"
-          style={{
-            background: si % 2 === 0 ? "rgba(124,185,168,0.06)" : "rgba(200,169,110,0.05)",
-            border: `1px solid ${si % 2 === 0 ? "rgba(124,185,168,0.18)" : "rgba(200,169,110,0.12)"}`,
-          }}
+          key={i}
+          className="py-1.5 text-right font-arabic leading-loose"
+          style={{ borderBottom: "1px solid rgba(200,169,110,0.07)" }}
         >
-          <div className="text-[10px] tracking-widest uppercase mb-2 opacity-40 text-right font-sans">
-            {si % 2 === 0 ? "غصن" : "قفل"} {si + 1}
-          </div>
-          {stanza.map((line, li) => (
-            <div key={li} className="py-0.5 text-right leading-loose">{line}</div>
-          ))}
+          {line}
         </div>
       ));
     },
   },
+
+  /* ── 2. العمودي ── Images 2 & 3
+     True two-hemistich split: right half | left half per line.
+     Generous spacing between couplet pairs (every 2 lines).
+     Formal Arabic (فصيح).                                    */
   {
-    id: "zajal",
-    nameAr: "الزجل",
-    nameEn: "Zajal",
-    descAr: "شعر عامّي ذو إيقاع حرّ وقوافٍ متشابكة",
-    descEn: "Colloquial verse with interlaced rhymes",
-    icon: "∿",
+    id: "amudi",
+    nameAr: "العمودي",
+    nameEn: "Amudi",
+    descAr: "شطران متوازيان لكل بيت مع مسافة بين الأبيات",
+    descEn: "Two-hemistich split per line, grouped in couplets",
+    icon: "⟨⟩",
+    accentColor: "#7CB9A8",
+    transformLines: (lines) => {
+      const nonEmpty = lines.filter(Boolean);
+      if (nonEmpty.length === 0) return null;
+      // Group into couplet pairs
+      const pairs: string[][] = [];
+      for (let i = 0; i < nonEmpty.length; i += 2)
+        pairs.push(nonEmpty.slice(i, i + 2));
+      return pairs.map((pair, pi) => (
+        <div key={pi} className="mb-5">
+          {pair.map((line, li) => {
+            const mid = Math.ceil(line.length / 2);
+            const right = line.slice(0, mid).trim() || line;
+            const left  = line.slice(mid).trim() || " ";
+            return (
+              <div
+                key={li}
+                className="grid gap-8 py-1 text-center font-arabic"
+                style={{ gridTemplateColumns: "1fr 1px 1fr" }}
+              >
+                <span className="text-right">{right}</span>
+                <span
+                  className="self-stretch"
+                  style={{ background: "rgba(124,185,168,0.18)" }}
+                />
+                <span className="text-left">{left}</span>
+              </div>
+            );
+          })}
+        </div>
+      ));
+    },
+  },
+
+  /* ── 3. اللازمة (مردّد) ── Image 4
+     Nabati with a repeating refrain line.
+     User writes: normal lines then a blank line marks the refrain.
+     The first line typed becomes the refrain (لازمة) and is
+     repeated centered after every stanza of 2 lines.          */
+  {
+    id: "lazma",
+    nameAr: "اللازمة",
+    nameEn: "Lazma",
+    descAr: "شعر نبطي بلازمة مكرّرة بعد كل مقطع",
+    descEn: "Nabati with a repeating refrain after each stanza",
+    icon: "↻",
     accentColor: "#B07CC8",
+    transformLines: (lines) => {
+      const all = lines.filter(Boolean);
+      if (all.length === 0) return null;
+      // First line is the refrain
+      const refrain = all[0];
+      const rest = all.slice(1);
+      // Group remaining lines into stanzas of 2
+      const stanzas: string[][] = [];
+      for (let i = 0; i < rest.length; i += 2)
+        stanzas.push(rest.slice(i, i + 2));
+
+      const RefrainLine = ({ first }: { first?: boolean }) => (
+        <div
+          className="text-center font-arabic py-2 my-2 mx-auto"
+          style={{
+            color: "#B07CC8",
+            fontSize: "0.9rem",
+            letterSpacing: "0.05em",
+            borderTop: first ? "none" : "1px solid rgba(176,124,200,0.18)",
+            borderBottom: "1px solid rgba(176,124,200,0.18)",
+          }}
+        >
+          {refrain}
+        </div>
+      );
+
+      return (
+        <div>
+          <RefrainLine first />
+          {stanzas.map((stanza, si) => (
+            <div key={si}>
+              <div className="my-2">
+                {stanza.map((line, li) => (
+                  <div key={li} className="py-1 text-right font-arabic leading-loose">
+                    {line}
+                  </div>
+                ))}
+              </div>
+              <RefrainLine />
+            </div>
+          ))}
+        </div>
+      );
+    },
+  },
+
+  /* ── 4. الونّة ── Image 6
+     Nabati ghazal with DUAL rhyme scheme shown as two columns.
+     Right column: lines ending with rhyme-A (e.g. -نسايم)
+     Left column:  lines ending with rhyme-B (e.g. -جداه)
+     User writes odd lines (right col) then even lines (left col).  */
+  {
+    id: "wanna",
+    nameAr: "الونّة",
+    nameEn: "Wanna",
+    descAr: "غزل نبطي بعمودين بقافيتين متناوبتين",
+    descEn: "Nabati ghazal with dual alternating rhyme columns",
+    icon: "❧",
+    accentColor: "#E87C9A",
+    transformLines: (lines) => {
+      const nonEmpty = lines.filter(Boolean);
+      if (nonEmpty.length === 0) return null;
+      // Pair each odd line (right) with next even line (left)
+      const pairs: [string, string][] = [];
+      for (let i = 0; i < nonEmpty.length; i += 2)
+        pairs.push([nonEmpty[i], nonEmpty[i + 1] ?? ""]);
+      return (
+        <div>
+          {pairs.map(([right, left], pi) => (
+            <div
+              key={pi}
+              className="grid gap-4 py-2 font-arabic"
+              style={{
+                gridTemplateColumns: "1fr 1fr",
+                borderBottom: "1px solid rgba(232,124,154,0.10)",
+              }}
+            >
+              <span className="text-right leading-loose">{right}</span>
+              <span
+                className="text-right leading-loose"
+                style={{ opacity: left ? 1 : 0.3, color: "rgba(232,124,154,0.85)" }}
+              >
+                {left || "—"}
+              </span>
+            </div>
+          ))}
+        </div>
+      );
+    },
+  },
+
+  /* ── 5. التفعيلة ── Image 7
+     Modern free verse — each line on its own, varying lengths.
+     Very short lines (≤ 4 chars) get centered and enlarged
+     to match the dramatic single-word effect seen in the image. */
+  {
+    id: "taf3ila",
+    nameAr: "التفعيلة",
+    nameEn: "Free Verse",
+    descAr: "شعر حرّ بأسطر متفاوتة الطول بلا وزن مقيّد",
+    descEn: "Modern free verse with variable line lengths",
+    icon: "〜",
+    accentColor: "#7A9ED4",
     transformLines: (lines) => {
       const nonEmpty = lines.filter(Boolean);
       if (nonEmpty.length === 0) return null;
       return nonEmpty.map((line, i) => {
-        const indented = i % 4 === 2 || i % 4 === 3;
+        const isShort = line.trim().length <= 4;
         return (
           <div
             key={i}
-            className="py-1 text-right"
+            className="font-arabic leading-loose"
             style={{
-              paddingRight: indented ? "24px" : "0",
-              borderRight: indented ? "2px solid rgba(176,124,200,0.35)" : "none",
-              opacity: indented ? 0.8 : 1,
+              textAlign: isShort ? "center" : "right",
+              fontSize: isShort ? "1.15rem" : "0.88rem",
+              fontWeight: isShort ? 600 : 400,
+              marginTop: isShort ? "1rem" : "0.1rem",
+              marginBottom: isShort ? "0.75rem" : "0.1rem",
+              color: isShort ? "#7A9ED4" : "inherit",
+              paddingRight: isShort ? 0 : `${Math.min((nonEmpty.length - i) * 2, 32)}px`,
             }}
           >
             {line}
           </div>
         );
       });
-    },
-  },
-  {
-    id: "prose-poem",
-    nameAr: "النثر",
-    nameEn: "Prose",
-    descAr: "كتابة شعرية حرّة بلا وزن أو قافية مقيّدة",
-    descEn: "Free-form poetic prose without fixed meter",
-    icon: "〜",
-    accentColor: "#E8A87C",
-    transformLines: (lines) => {
-      const text = lines.filter(Boolean).join(" ");
-      if (!text) return null;
-      return (
-        <p className="text-right font-arabic" style={{ lineHeight: "2.5", fontSize: "1rem" }}>
-          {text}
-        </p>
-      );
     },
   },
 ];
@@ -201,23 +319,13 @@ interface PreviewProps {
   selectedFormat: PoemFormat | null;
 }
 
-const DESC_META: Record<string, { ar: string; en: string; icon: string }> = {
-  classical:    { ar: "شطران متوازيان مع قافية موحّدة",            en: "Two-hemistich lines with unified rhyme",       icon: "⟨⟩" },
-  muwashah:     { ar: "أبيات مقطّعة متعددة الأعجاز والأقفال",      en: "Stanzas with alternating verses and refrains", icon: "❖"  },
-  zajal:        { ar: "شعر عامّي ذو إيقاع حرّ وقوافٍ متشابكة",    en: "Colloquial verse with interlaced rhymes",       icon: "∿"  },
-  "prose-poem": { ar: "كتابة شعرية حرّة بلا وزن أو قافية مقيّدة", en: "Free-form poetic prose without fixed meter",   icon: "〜" },
-};
-
 export function PoemFormatPreview({ poemContent, poemTitle, selectedFormat }: PreviewProps) {
   const meta = selectedFormat ? FORMATS.find((f) => f.id === selectedFormat)! : null;
   const lines = poemContent.split("\n");
   const hasContent = poemContent.trim().length > 0;
-  const desc = selectedFormat ? DESC_META[selectedFormat] : null;
 
   return (
-    /* Fills whatever height the parent gives — same as textarea */
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      {/* Panel — full height, description bar docked at top like a toolbar */}
       <div
         className="relative rounded-xl flex flex-col"
         style={{
@@ -232,7 +340,7 @@ export function PoemFormatPreview({ poemContent, poemTitle, selectedFormat }: Pr
           transition: "border-color 0.3s, box-shadow 0.3s",
         }}
       >
-        {/* Description bar — docked at top, full width, same feel as format toolbar */}
+        {/* Description bar */}
         <div
           className="shrink-0 flex items-center gap-2 px-3 border-b"
           style={{
@@ -243,7 +351,7 @@ export function PoemFormatPreview({ poemContent, poemTitle, selectedFormat }: Pr
           }}
         >
           <AnimatePresence mode="wait">
-            {desc && meta ? (
+            {meta ? (
               <motion.div
                 key={selectedFormat!}
                 initial={{ opacity: 0, y: -3 }}
@@ -252,9 +360,9 @@ export function PoemFormatPreview({ poemContent, poemTitle, selectedFormat }: Pr
                 transition={{ duration: 0.16 }}
                 className="flex items-center gap-2 w-full"
               >
-                <span className="text-[13px] leading-none shrink-0" style={{ color: meta.accentColor }}>{desc.icon}</span>
-                <span className="text-[10px] font-arabic truncate" style={{ color: meta.accentColor }} dir="rtl">{desc.ar}</span>
-                <span className="text-[10px] text-foreground/30 hidden sm:inline shrink-0 ml-1">· {desc.en}</span>
+                <span className="text-[13px] leading-none shrink-0" style={{ color: meta.accentColor }}>{meta.icon}</span>
+                <span className="text-[10px] font-arabic truncate" style={{ color: meta.accentColor }} dir="rtl">{meta.descAr}</span>
+                <span className="text-[10px] text-foreground/30 hidden sm:inline shrink-0 ml-1">· {meta.descEn}</span>
               </motion.div>
             ) : (
               <motion.span key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
@@ -275,7 +383,7 @@ export function PoemFormatPreview({ poemContent, poemTitle, selectedFormat }: Pr
           }}
         />
 
-        {/* Poem title inside preview */}
+        {/* Poem title */}
         <AnimatePresence>
           {poemTitle && (
             <motion.div
@@ -319,7 +427,7 @@ export function PoemFormatPreview({ poemContent, poemTitle, selectedFormat }: Pr
           ✦
         </div>
 
-        {/* Scrollable content — vertical only, wrap long lines */}
+        {/* Scrollable content */}
         <div
           className="relative z-10 flex-1 px-5 py-5"
           dir="rtl"

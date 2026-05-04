@@ -555,7 +555,7 @@ export default function SubmitPage() {
                             initial={{ scaleY: 0, opacity: 0 }} animate={{ scaleY: 1, opacity: 1 }}
                             exit={{ scaleY: 0, opacity: 0 }} transition={{ duration: 0.2 }}
                             className="w-0.5 h-4 rounded-full origin-top shrink-0"
-                            style={{ background: `linear-gradient(to bottom, ${{ classical:"#C8A96E", muwashah:"#7CB9A8", zajal:"#B07CC8", "prose-poem":"#E8A87C" }[poemFormat]}, transparent)` }}
+                            style={{ background: `linear-gradient(to bottom, ${{ nabati:"#C8A96E", amudi:"#7CB9A8", lazma:"#B07CC8", wanna:"#E87C9A", taf3ila:"#7A9ED4" }[poemFormat]}, transparent)` }}
                           />
                         ) : (
                           <motion.div key="default" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
@@ -568,8 +568,8 @@ export default function SubmitPage() {
                     </div>
                     <AnimatePresence mode="wait">
                       {poemFormat && (() => {
-                        const color = { classical:"#C8A96E", muwashah:"#7CB9A8", zajal:"#B07CC8", "prose-poem":"#E8A87C" }[poemFormat]!;
-                        const name  = { classical:"القصيدة العمودية", muwashah:"الموشّح", zajal:"الزجل", "prose-poem":"قصيدة النثر" }[poemFormat]!;
+                        const color = { nabati:"#C8A96E", amudi:"#7CB9A8", lazma:"#B07CC8", wanna:"#E87C9A", taf3ila:"#7A9ED4" }[poemFormat]!;
+                        const name  = { nabati:"النبطي", amudi:"العمودي", lazma:"اللازمة", wanna:"الونّة", taf3ila:"التفعيلة" }[poemFormat]!;
                         return (
                           <motion.span key={poemFormat}
                             initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}

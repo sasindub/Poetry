@@ -500,39 +500,75 @@ export default function SubmitPage() {
                     className={inputClass} />
                 </div>
 
-                {/* ── Poem editor + preview side-by-side ── */}
+                {/* ── Two-column poem editor — both columns same total height ── */}
                 <div className="grid lg:grid-cols-2 gap-4 items-start">
-                  {/* Left: format toolbar + textarea */}
+
+                  {/* ── LEFT ── */}
                   <div className="flex flex-col">
-                    <label className="block text-xs text-foreground/50 mb-2">
-                      {t("poemContent")} <span className="text-gold">*</span>
-                    </label>
-                    <div
-                      className="rounded-t-lg border border-b-0 border-border px-3 py-2"
-                      style={{ background: "rgba(255,255,255,0.025)" }}
-                    >
-                      <PoemFormatToolbar
-                        selectedFormat={poemFormat}
-                        onSelectFormat={setPoemFormat}
-                      />
+                    {/* Title */}
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-0.5 h-4 rounded-full bg-gradient-to-b from-gold/80 to-gold/20 shrink-0" />
+                      <label className="text-xs font-semibold tracking-widest uppercase text-foreground/50">
+                        {t("poemContent")} <span className="text-gold/70">*</span>
+                      </label>
                     </div>
+                    {/* Toolbar */}
+                    <div className="rounded-t-lg border border-b-0 border-border px-3 py-2 shrink-0"
+                      style={{ background: "rgba(255,255,255,0.025)" }}>
+                      <PoemFormatToolbar selectedFormat={poemFormat} onSelectFormat={setPoemFormat} />
+                    </div>
+                    {/* Textarea */}
                     <textarea
                       value={form.poemContent}
                       onChange={(e) => handleChange("poemContent", e.target.value)}
-                      required
-                      dir="rtl"
+                      required dir="rtl"
+                      style={{ height: "420px" }}
                       className="w-full bg-background/50 border border-border rounded-b-lg px-4 py-3 text-sm text-foreground focus:outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20 transition-all font-arabic resize-none leading-loose"
-                      style={{ height: "400px" }}
                       placeholder="اكتب قصيدتك هنا..."
                     />
                   </div>
 
-                  {/* Right: preview — fixed same 400px, no flex tricks */}
+                  {/* ── RIGHT ── */}
                   <div className="flex flex-col">
-                    <label className="block text-xs text-foreground/50 mb-2">
-                      Live Preview
-                    </label>
-                    <div style={{ height: "400px" }}>
+                    {/* Title row */}
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-2">
+                        <AnimatePresence mode="wait">
+                          {poemFormat ? (
+                            <motion.div key={poemFormat}
+                              initial={{ scaleY: 0, opacity: 0 }} animate={{ scaleY: 1, opacity: 1 }}
+                              exit={{ scaleY: 0, opacity: 0 }} transition={{ duration: 0.2 }}
+                              className="w-0.5 h-4 rounded-full origin-top shrink-0"
+                              style={{ background: `linear-gradient(to bottom, ${{ classical:"#C8A96E", muwashah:"#7CB9A8", zajal:"#B07CC8", "prose-poem":"#E8A87C" }[poemFormat]}, transparent)` }}
+                            />
+                          ) : (
+                            <motion.div key="default" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                              className="w-0.5 h-4 rounded-full shrink-0 bg-gradient-to-b from-foreground/20 to-transparent" />
+                          )}
+                        </AnimatePresence>
+                        <label className="text-xs font-semibold tracking-widest uppercase text-foreground/50">
+                          Live Preview
+                        </label>
+                      </div>
+                      <AnimatePresence mode="wait">
+                        {poemFormat && (() => {
+                          const color = { classical:"#C8A96E", muwashah:"#7CB9A8", zajal:"#B07CC8", "prose-poem":"#E8A87C" }[poemFormat]!;
+                          const name  = { classical:"القصيدة العمودية", muwashah:"الموشّح", zajal:"الزجل", "prose-poem":"قصيدة النثر" }[poemFormat]!;
+                          return (
+                            <motion.span key={poemFormat}
+                              initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.85 }} transition={{ duration: 0.15 }}
+                              className="text-[10px] font-arabic px-2 py-0.5 rounded-full border shrink-0"
+                              style={{ color, borderColor: color+"35", background: color+"10" }} dir="rtl">
+                              {name}
+                            </motion.span>
+                          );
+                        })()}
+                      </AnimatePresence>
+                    </div>
+
+                    {/* Preview panel — same 420px as textarea; description bar is inside the panel */}
+                    <div style={{ height: "420px" }}>
                       <PoemFormatPreview
                         poemContent={form.poemContent}
                         poemTitle={form.poemTitle}
@@ -540,6 +576,7 @@ export default function SubmitPage() {
                       />
                     </div>
                   </div>
+
                 </div>
               </div>
 

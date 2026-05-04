@@ -201,51 +201,23 @@ interface PreviewProps {
   selectedFormat: PoemFormat | null;
 }
 
+const DESC_META: Record<string, { ar: string; en: string; icon: string }> = {
+  classical:    { ar: "شطران متوازيان مع قافية موحّدة",            en: "Two-hemistich lines with unified rhyme",       icon: "⟨⟩" },
+  muwashah:     { ar: "أبيات مقطّعة متعددة الأعجاز والأقفال",      en: "Stanzas with alternating verses and refrains", icon: "❖"  },
+  zajal:        { ar: "شعر عامّي ذو إيقاع حرّ وقوافٍ متشابكة",    en: "Colloquial verse with interlaced rhymes",       icon: "∿"  },
+  "prose-poem": { ar: "كتابة شعرية حرّة بلا وزن أو قافية مقيّدة", en: "Free-form poetic prose without fixed meter",   icon: "〜" },
+};
+
 export function PoemFormatPreview({ poemContent, poemTitle, selectedFormat }: PreviewProps) {
   const meta = selectedFormat ? FORMATS.find((f) => f.id === selectedFormat)! : null;
   const lines = poemContent.split("\n");
   const hasContent = poemContent.trim().length > 0;
+  const desc = selectedFormat ? DESC_META[selectedFormat] : null;
 
   return (
+    /* Fills whatever height the parent gives — same as textarea */
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      {/* Header row */}
-      <div className="flex items-center justify-between mb-2" style={{ flexShrink: 0 }}>
-        <div className="flex items-center gap-2">
-          <div
-            className="w-0.5 h-4 rounded-full transition-all duration-300"
-            style={{
-              background: meta
-                ? `linear-gradient(to bottom, ${meta.accentColor}, ${meta.accentColor}44)`
-                : "rgba(255,255,255,0.1)",
-            }}
-          />
-          <span className="text-[10px] font-semibold tracking-widest uppercase text-foreground/40">
-            Live Preview
-          </span>
-        </div>
-        <AnimatePresence mode="wait">
-          {meta && (
-            <motion.span
-              key={meta.id}
-              initial={{ opacity: 0, x: 6 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -4 }}
-              transition={{ duration: 0.15 }}
-              className="text-[10px] font-arabic px-2 py-0.5 rounded-full border"
-              style={{
-                color: meta.accentColor,
-                borderColor: `${meta.accentColor}30`,
-                background: `${meta.accentColor}0E`,
-              }}
-              dir="rtl"
-            >
-              {meta.nameAr}
-            </motion.span>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Panel */}
+      {/* Panel — full height, description bar docked at top like a toolbar */}
       <div
         className="relative rounded-xl flex flex-col"
         style={{
@@ -260,6 +232,39 @@ export function PoemFormatPreview({ poemContent, poemTitle, selectedFormat }: Pr
           transition: "border-color 0.3s, box-shadow 0.3s",
         }}
       >
+        {/* Description bar — docked at top, full width, same feel as format toolbar */}
+        <div
+          className="shrink-0 flex items-center gap-2 px-3 border-b"
+          style={{
+            height: "37px",
+            background: "rgba(255,255,255,0.025)",
+            borderColor: meta ? meta.accentColor + "18" : "rgba(255,255,255,0.06)",
+            transition: "border-color 0.3s",
+          }}
+        >
+          <AnimatePresence mode="wait">
+            {desc && meta ? (
+              <motion.div
+                key={selectedFormat!}
+                initial={{ opacity: 0, y: -3 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -3 }}
+                transition={{ duration: 0.16 }}
+                className="flex items-center gap-2 w-full"
+              >
+                <span className="text-[13px] leading-none shrink-0" style={{ color: meta.accentColor }}>{desc.icon}</span>
+                <span className="text-[10px] font-arabic truncate" style={{ color: meta.accentColor }} dir="rtl">{desc.ar}</span>
+                <span className="text-[10px] text-foreground/30 hidden sm:inline shrink-0 ml-1">· {desc.en}</span>
+              </motion.div>
+            ) : (
+              <motion.span key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                className="text-[10px] text-foreground/25">
+                Select a format above to preview
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </div>
+
         {/* Top shimmer */}
         <div
           className="h-px w-full shrink-0 transition-all duration-500"
@@ -314,8 +319,12 @@ export function PoemFormatPreview({ poemContent, poemTitle, selectedFormat }: Pr
           ✦
         </div>
 
-        {/* Scrollable content */}
-        <div className="relative z-10 flex-1 overflow-y-auto px-5 py-5" dir="rtl">
+        {/* Scrollable content — vertical only, wrap long lines */}
+        <div
+          className="relative z-10 flex-1 px-5 py-5"
+          dir="rtl"
+          style={{ overflowY: "auto", overflowX: "hidden" }}
+        >
           <AnimatePresence mode="wait">
             {!meta ? (
               <motion.div
@@ -357,7 +366,13 @@ export function PoemFormatPreview({ poemContent, poemTitle, selectedFormat }: Pr
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.25 }}
                 className="font-arabic text-foreground/88 leading-loose"
-                style={{ fontSize: "0.97rem" }}
+                style={{
+                  fontSize: "0.88rem",
+                  wordBreak: "break-word",
+                  overflowWrap: "break-word",
+                  whiteSpace: "pre-wrap",
+                  maxWidth: "100%",
+                }}
               >
                 {meta.transformLines(lines)}
               </motion.div>
